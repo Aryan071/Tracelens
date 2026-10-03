@@ -10,9 +10,10 @@ cd "$(dirname "$0")/.."
 LOAD_RATE=${LOAD_RATE:-12}; SAMPLE_S=${SAMPLE_S:-50}
 git diff --quiet HEAD -- demo || { echo "commit your demo/ changes first: the scratch repo is built from HEAD" >&2; exit 1; }
 make -s dev-image
-rm -rf .tmp/e2e && mkdir -p .tmp/e2e
+mkdir -p .tmp/e2e
 
 if [ "${ANALYZE_ONLY:-0}" != 1 ]; then   # ANALYZE_ONLY=1 reuses the data of a previous run
+rm -rf .tmp/e2e && mkdir -p .tmp/e2e
 echo "== fresh stack"
 docker compose down -v -t 1 >/dev/null 2>&1 || true
 docker compose up -d --build --wait postgres clickhouse ingest api 2>&1 | tail -3
