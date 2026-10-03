@@ -4,7 +4,7 @@ UV_IMG  := tracelens-dev:py312
 NODE_IMG := node:20-alpine
 J2TS_VERSION := 15.0.2
 
-.PHONY: dev-image gen gen-py gen-ts gen-openapi gen-check fmt lint test-py test-integration
+.PHONY: check dev-image gen gen-py gen-ts gen-openapi gen-check fmt lint test-py test-integration
 gen: gen-py gen-ts gen-openapi
 
 dev-image:
@@ -19,6 +19,9 @@ gen-py: dev-image
 	  --output engine/src/tracelens/evidence/models.py --output-model-type pydantic_v2.BaseModel \
 	  --target-python-version 3.12 --use-annotated --use-title-as-name --field-constraints --use-union-operator \
 	  --use-standard-collections --disable-timestamp --formatters ruff-format
+
+# Gate for commits: formatting, lint, strict types and the unit tests must all pass.
+check: lint test-py
 
 fmt: dev-image
 	$(UV) ruff check --fix . ; $(UV) ruff format .

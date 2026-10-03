@@ -99,7 +99,8 @@ def test_structure_ids_links_and_ranking() -> None:
     assert ev.id == "evd_orders_post_orders_1_0_0_to_1_1_0" and ev.schemaVersion == "1.1.0"
     lat = items["ev_latency_orders_post_orders"]
     assert lat.type == "latency_regression" and lat.data.test == "mann_whitney_u"
-    assert lat.data.target == "POST /orders" and lat.data.p95DeltaPct > 100
+    assert lat.data.target == "POST /orders"
+    assert lat.data.p95DeltaPct is not None and lat.data.p95DeltaPct > 100
     assert (
         lat.data.controlNormalization is not None
         and len(lat.data.controlNormalization.controls) == 3
