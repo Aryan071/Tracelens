@@ -1,0 +1,77 @@
+name: tracelens
+
+x-demo: &demo
+  build: { context: ., dockerfile: demo/Dockerfile }
+  depends_on:
+    postgres: { condition: service_healthy }
+  environment: &demo-env
+    DATABASE_URL: postgres://tracelens:tracelens@postgres:5432/demo
+    DEMO_VERSION: ${DEMO_VERSION:-1.0.0}
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: tracelens
+      POSTGRES_PASSWORD: tracelens
+      POSTGRES_DB: demo
+    volumes:
+      - ./demo/db/init.sql:/docker-entrypoint-initdb.d/10-demo.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tracelens -d demo"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    environment:
+      CLICKHOUSE_DB: tracelens
+      CLICKHOUSE_USER: tracelens
+      CLICKHOUSE_PASSWORD: tracelens
+    ulimits: { nofile: { soft: 262144, hard: 262144 } }
+    volumes:
+      - chdata:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8123/ping || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  orders:
+    <<: *demo
+    command: ["node", "-r", "./dist/tracing.js", "dist/orders.js"]
+    environment:
+      <<: *demo-env
+      OTEL_SERVICE_NAME: orders
+      OTEL_RESOURCE_ATTRIBUTES: service.version=${DEMO_VERSION:-1.0.0}
+    ports: ["3001:3001"]
+
+  inventory:
+    <<: *demo
+    command: ["node", "-r", "./dist/tracing.js", "dist/inventory.js"]
+    environment:
+      <<: *demo-env
+      OTEL_SERVICE_NAME: inventory
+      OTEL_RESOURCE_ATTRIBUTES: service.version=${DEMO_VERSION:-1.0.0}
+
+  payments:
+    <<: *demo
+    command: ["node", "-r", "./dist/tracing.js", "dist/payments.js"]
+    environment:
+      <<: *demo-env
+      OTEL_SERVICE_NAME: payments
+      OTEL_RESOURCE_ATTRIBUTES: service.version=${DEMO_VERSION:-1.0.0}
+
+  loadgen:
+    <<: *demo
+    command: ["node", "dist/loadgen.js"]
+    depends_on: [orders]
+    environment:
+      ORDERS_URL: http://orders:3001
+      RATE: ${LOAD_RATE:-5}
+
+volumes:
+  pgdata:
+  chdata:

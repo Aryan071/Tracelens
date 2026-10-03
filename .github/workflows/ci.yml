@@ -1,0 +1,43 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+
+jobs:
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generated types are up to date
+        run: make gen-check
+
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.23", cache-dependency-path: engine/go.mod }
+      - name: gofmt
+        run: test -z "$(gofmt -l engine)" || (gofmt -l engine; exit 1)
+      - run: cd engine && go vet ./... && go test ./... -race
+
+  node:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: npm }
+      - run: npm ci
+      - name: Typecheck (strict tsc is the lint gate until eslint is approved)
+        run: npm run typecheck --workspaces --if-present
+      - run: npm test --workspaces --if-present
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --build --wait postgres clickhouse
+      - run: docker compose up -d --build
+      - run: scripts/smoke.sh
+      - if: failure()
+        run: docker compose logs --tail=200

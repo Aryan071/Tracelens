@@ -1,5 +1,5 @@
 {
   "name": "tracelens",
   "private": true,
-  "workspaces": ["extension", "demo/*"]
+  "workspaces": ["extension", "demo"]
 }
