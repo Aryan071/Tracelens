@@ -78,7 +78,7 @@ services:
       TRACELENS_PG_DSN: postgresql://tracelens:tracelens@postgres:5432/tracelens
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_DB: tracelens
-    ports: ["127.0.0.1:8080:8080"]
+    ports: ["127.0.0.1:${API_HOST_PORT:-18080}:8080"]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/healthz').status==200 else 1)"]
       interval: 3s

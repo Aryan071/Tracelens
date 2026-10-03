@@ -14,12 +14,12 @@ rm -rf .tmp/e2e && mkdir -p .tmp/e2e
 
 echo "== fresh stack"
 docker compose down -v -t 1 >/dev/null 2>&1 || true
-docker compose up -d --build --wait postgres clickhouse ingest api >/dev/null 2>&1
+docker compose up -d --build --wait postgres clickhouse ingest api 2>&1 | tail -3
 python3 demo/bad-deployments/scenarios.py build "$PWD" .tmp/e2e/repo > .tmp/e2e/shas.json
 sha() { python3 -c "import json;print(json.load(open('.tmp/e2e/shas.json'))['$1'])"; }
 
 register() { # service version sha
-  curl -fsS -XPOST localhost:8080/deployments -H 'content-type: application/json' \
+  curl -fsS -XPOST localhost:${API_HOST_PORT:-18080}/deployments -H 'content-type: application/json' \
     -d "{\"service\":\"$1\",\"version\":\"$2\",\"commitSha\":\"$3\"}" >/dev/null
 }
 deploy() { # version label
