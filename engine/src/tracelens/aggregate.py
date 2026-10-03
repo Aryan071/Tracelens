@@ -20,6 +20,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from tracelens.mapping import Mapping, MemorySymbolIndex, SymbolRef, map_span
+from tracelens.stats import percentile
 from tracelens.timing import analyze
 from tracelens.tree import Forest, Node
 
@@ -62,16 +63,6 @@ class EndpointProfile:
     data_issues: dict[str, int] = field(default_factory=dict)
 
 
-def percentile(sorted_vals: Sequence[float], q: float) -> float:
-    """Linear-interpolated percentile of an ascending sequence (q in [0, 1])."""
-    if not sorted_vals:
-        return 0.0
-    pos = q * (len(sorted_vals) - 1)
-    lo = int(pos)
-    hi = min(lo + 1, len(sorted_vals) - 1)
-    return sorted_vals[lo] + (sorted_vals[hi] - sorted_vals[lo]) * (pos - lo)
-
-
 def _map_subtree(root: Node, idx: MemorySymbolIndex) -> dict[str, Mapping]:
     out: dict[str, Mapping] = {}
     stack: list[tuple[Node, str]] = [(root, "")]
@@ -103,6 +94,65 @@ def _targets(
     return out
 
 
+@dataclass(slots=True)
+class RequestAttribution:
+    """One request's latency attributed to symbols (the unit regression detection tests on)."""
+
+    start_ns: int
+    duration_ns: int
+    critical_ns: dict[str, int]  # symbol key -> critical-path time charged to it
+    self_ns: dict[str, int]
+    via: dict[str, dict[str, int]]  # symbol key -> span name -> ns the time flowed through
+    mapped: list[tuple[str, SymbolRef, str, float]]  # (key, symbol, mapping method, confidence)
+    async_tail_ns: int
+    issues: Counter[str]
+    versions: dict[str, set[str]]  # service -> versions of the services touched by this request
+
+
+def attribute_request(
+    rq: Request, idx: MemorySymbolIndex, min_confidence: float = MIN_CONFIDENCE
+) -> RequestAttribution:
+    maps = _map_subtree(rq.root, idx)
+    tgt = _targets(rq.root, maps, min_confidence)
+    timing = analyze(rq.root)
+    mapped = [
+        (m.symbol.key, m.symbol, m.method, m.confidence)
+        for m in maps.values()
+        if m.symbol is not None and m.confidence >= min_confidence
+    ]
+    crit: dict[str, int] = defaultdict(int)
+    selft: dict[str, int] = defaultdict(int)
+    via: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    by_id = rq.forest.by_id
+    for sid, ns in timing.critical_ns.items():
+        key, owner = tgt[sid]
+        key = key or UNMAPPED_KEY
+        crit[key] += ns
+        if owner != sid:
+            via[key][by_id[sid].span.name] += ns
+    for sid, ns in timing.self_ns.items():
+        if sid not in timing.detached:
+            selft[tgt[sid][0] or UNMAPPED_KEY] += ns
+    versions: dict[str, set[str]] = defaultdict(set)
+    stack = [rq.root]
+    while stack:
+        n = stack.pop()
+        if n.span.version:
+            versions[n.span.service].add(n.span.version)
+        stack.extend(n.children)
+    return RequestAttribution(
+        start_ns=rq.root.start,
+        duration_ns=timing.root_duration_ns,
+        critical_ns=dict(crit),
+        self_ns=dict(selft),
+        via={k: dict(v) for k, v in via.items()},
+        mapped=mapped,
+        async_tail_ns=timing.async_tail_ns,
+        issues=Counter(rq.forest.issues),
+        versions=dict(versions),
+    )
+
+
 def build_profile(
     service: str,
     method: str,
@@ -125,33 +175,20 @@ def build_profile(
     tail_total = 0
     issues: Counter[str] = Counter()
     for rq in requests:
-        issues.update(rq.forest.issues)
-        maps = _map_subtree(rq.root, idx)
-        tgt = _targets(rq.root, maps, min_confidence)
-        timing = analyze(rq.root)
-        durations.append(timing.root_duration_ns)
-        tail_total += timing.async_tail_ns
-        for m in maps.values():
-            if m.symbol is not None and m.confidence >= min_confidence:
-                k = m.symbol.key
-                sym_of[k] = m.symbol
-                conf_sum[k] += m.confidence
-                conf_n[k] += 1
-                methods[k][m.method] += 1
-        crit: dict[str, int] = defaultdict(int)
-        selft: dict[str, int] = defaultdict(int)
-        by_id = rq.forest.by_id
-        for sid, ns in timing.critical_ns.items():
-            key, owner = tgt[sid]
-            key = key or UNMAPPED_KEY
-            crit[key] += ns
-            if owner != sid:
-                via[key][by_id[sid].span.name] += ns
-        for sid, ns in timing.self_ns.items():
-            if sid not in timing.detached:
-                selft[tgt[sid][0] or UNMAPPED_KEY] += ns
-        per_req_crit.append(crit)
-        per_req_self.append(selft)
+        a = attribute_request(rq, idx, min_confidence)
+        issues.update(a.issues)
+        durations.append(a.duration_ns)
+        tail_total += a.async_tail_ns
+        for key, sym, how, conf in a.mapped:
+            sym_of[key] = sym
+            conf_sum[key] += conf
+            conf_n[key] += 1
+            methods[key][how] += 1
+        for key, names in a.via.items():
+            for nm, ns in names.items():
+                via[key][nm] += ns
+        per_req_crit.append(a.critical_ns)
+        per_req_self.append(a.self_ns)
 
     total_crit = float(sum(durations)) or 1.0
     keys = set().union(*per_req_crit) if per_req_crit else set()

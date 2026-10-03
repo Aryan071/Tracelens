@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from spanfactory import sp
 
-from tracelens.aggregate import UNMAPPED_KEY, Request, build_profile, percentile
+from tracelens.aggregate import UNMAPPED_KEY, Request, build_profile
 from tracelens.mapping import MemorySymbolIndex, RouteRef, SymbolRef
 from tracelens.spans import Span
 from tracelens.tree import build_forest
@@ -191,10 +191,3 @@ def test_contributors_are_sorted_and_ties_are_deterministic() -> None:
     assert a == [c.key for c in profile(list(reversed(reqs))).contributors]
     ms = [c.critical_ms_mean for c in profile(reqs).contributors]
     assert ms == sorted(ms, reverse=True)
-
-
-def test_percentile() -> None:
-    assert percentile([], 0.5) == 0.0
-    assert percentile([5.0], 0.99) == 5.0
-    assert percentile([0, 10, 20, 30, 40], 0.5) == 20
-    assert percentile([0, 10], 0.95) == pytest.approx(9.5)

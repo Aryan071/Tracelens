@@ -22,6 +22,7 @@ class Span:
     http_route: str = ""
     http_method: str = ""
     db_system: str = ""
+    version: str = ""  # service.version of the emitting service (resource attribute)
 
     @property
     def duration_ns(self) -> int:

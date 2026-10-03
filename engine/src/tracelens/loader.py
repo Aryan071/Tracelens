@@ -18,7 +18,7 @@ _COLUMNS = (
     "toString(trace_id), toString(span_id), toString(parent_span_id), service, name, toString(kind), "
     "toUnixTimestamp64Nano(start_time),"
     " toUnixTimestamp64Nano(start_time) + toInt64(duration_ns), "
-    "toString(status_code), code_function, code_filepath, code_lineno, http_route, http_method, db_system"
+    "toString(status_code), code_function, code_filepath, code_lineno, http_route, http_method, db_system, service_version"
 )
 TRACE_BATCH = 500
 
@@ -50,6 +50,7 @@ def _span(r: Sequence[object]) -> Span:
         http_route=str(r[12]),
         http_method=str(r[13]),
         db_system=str(r[14]),
+        version=str(r[15]),
     )
 
 

@@ -96,3 +96,54 @@ class BlobReader:
             if self._p.stdin:
                 self._p.stdin.close()
             self._p.wait(timeout=10)
+
+
+def rev_list_with_parents(repo: str, old_sha: str, new_sha: str) -> list[tuple[str, list[str]]]:
+    """Commits reachable from new_sha but not old_sha, oldest first, each with its parents."""
+    out = _run(repo, "rev-list", "--reverse", "--parents", f"{old_sha}..{new_sha}").decode()
+    result: list[tuple[str, list[str]]] = []
+    for line in out.splitlines():
+        parts = line.split()
+        if parts:
+            result.append((parts[0], parts[1:]))
+    return result
+
+
+@dataclass(frozen=True, slots=True)
+class RawDiff:
+    status: str  # A | M | D | R | C | T
+    old_path: str
+    new_path: str
+    old_blob: str  # all-zero for added files
+    new_blob: str  # all-zero for deleted files
+
+
+_ZERO = "0" * 40
+
+
+def diff_raw(repo: str, parent: str, commit: str) -> list[RawDiff]:
+    """Changed files between two commits, with rename detection (blob ids included)."""
+    out = _run(repo, "diff-tree", "-r", "-M", "-z", "--raw", "--no-commit-id", parent, commit)
+    parts = out.split(b"\0")
+    diffs: list[RawDiff] = []
+    i = 0
+    while i < len(parts):
+        head = parts[i]
+        if not head.startswith(b":"):
+            i += 1
+            continue
+        meta = head[1:].split()
+        old_blob, new_blob, status = meta[2].decode(), meta[3].decode(), meta[4].decode()
+        if status[0] in ("R", "C"):
+            old_path = parts[i + 1].decode("utf8", "surrogateescape")
+            new_path = parts[i + 2].decode("utf8", "surrogateescape")
+            i += 3
+        else:
+            old_path = new_path = parts[i + 1].decode("utf8", "surrogateescape")
+            i += 2
+        diffs.append(RawDiff(status[0], old_path, new_path, old_blob, new_blob))
+    return diffs
+
+
+def zero_blob(blob: str) -> bool:
+    return blob == _ZERO
