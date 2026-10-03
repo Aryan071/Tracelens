@@ -375,3 +375,47 @@ def test_type_bindings() -> None:
     cls = next(s.local_id for s in f.symbols if s.qualified_name == "C")
     run = next(s.local_id for s in f.symbols if s.qualified_name == "C.run")
     assert owner["repo"] == cls and owner["dep"] == cls and owner["local"] == run
+
+
+# ------------------------------------------------- positions (byte offsets, no Node.start_point)
+def test_line_and_column_computation_including_crlf_and_multibyte() -> None:
+    src = "// héllo\r\nfunction a() {}\r\n\r\n  export const b = () => {\n    return 1;\n  };\n"
+    f = facts(src)
+    a, b = sym(f, "a"), sym(f, "b")
+    assert (a.start_line, a.start_col, a.end_line) == (2, 0, 2)
+    assert (b.start_line, b.start_col, b.end_line) == (
+        4,
+        19,
+        6,
+    )  # arrow starts after `  export const b = `
+    # first line has a 2-byte char; columns are byte-based like tree-sitter's
+    g = facts("const é = 1; function z() {}\n")
+    assert sym(g, "z").start_col == len("const é = 1; ".encode())
+
+
+def test_no_native_crash_under_sustained_parsing() -> None:
+    """py-tree-sitter 0.26.0 segfaults when Node.start_point/end_point are used heavily. Parse
+    in a child process so a regression shows up as a failed assertion, not a dead test runner."""
+    import subprocess
+    import sys
+
+    code = (
+        "from tracelens_indexer.parse import parse_file\n"
+        "src = ('export function f%d(a, b) { g(a); return [1, 2].map((x) => h(x, b)); }\\n' * 1) \n"
+        "body = ''.join(src % i for i in range(400)).encode()\n"
+        "for _ in range(30):\n"
+        "    assert parse_file('x.ts', body) is not None\n"
+        "print('ok')\n"
+    )
+    p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True)
+    assert p.returncode == 0 and p.stdout.strip() == "ok", f"rc={p.returncode} {p.stderr[-300:]}"
+
+
+def test_super_calls_are_recorded() -> None:
+    f = facts(
+        "class A extends B {\n constructor() { super(1); }\n m() { super.m(); super.a.b(); }\n}"
+    )
+    got = {(c.kind, c.callee_text, c.member) for c in f.calls}
+    assert ("super_call", "super", None) in got
+    assert ("super", "super.m", "m") in got
+    assert ("chain", "super.a.b", "b") in got

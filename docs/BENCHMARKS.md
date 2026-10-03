@@ -119,3 +119,109 @@ bench/ingest_bench.sh --mode burst --total 2000000 --procs 4 --threads 4 --label
 bench/outage_test.sh
 bench/shutdown_test.sh
 ```
+
+---
+
+# Phase 2: code indexer
+
+Same hardware and caveats as above (laptop; PostgreSQL, the indexer and the benchmark driver share
+the machine). Raw output: `bench/results/index-typeorm-w13.json`, `bench/results/call-graph-eval-typeorm.json`.
+
+## Corpus
+
+[typeorm](https://github.com/typeorm/typeorm) (MIT), `master` at `17e858da` (2026-09-30), shallow clone
+(depth 60). The index benchmark starts at `HEAD~12` and then indexes the 12 real consecutive commits up
+to `HEAD`. At the base commit: **3,597 TS/JS files, 303,797 lines** (this includes tests and docs; the
+library source alone, `packages/typeorm/src`, is 496 files). Files over 1 MB and `.d.ts` are skipped.
+
+## Cold index (full, from an empty database)
+
+3 runs per setting; `parse` = reading blobs from git + parsing in the worker pool, `load` = loading
+imports/exports/symbols from PostgreSQL for resolution, `resolve` = call/route resolution. The rest of
+the wall time is git manifest, bulk `COPY` writes and the single transaction that publishes the commit.
+
+| Workers | Wall (3 runs) | LOC/s | parse | load | resolve | Peak RSS main / worker |
+|---|---|---|---|---|---|---|
+| 1 | 5.7 s, 5.8 s, 5.8 s | ~52.8k | ~3.5 s | ~0.57 s | ~0.39 s | 99 / 58 MiB |
+| 4 | 3.9 s, 3.9 s, 3.9 s | ~77.8k | ~1.7 s | ~0.58 s | ~0.38 s | 99 / 56-58 MiB |
+| 13 | 3.8 s (full run) | ~79.0k | 1.7 s | 0.56 s | 0.37 s | 99 / 56 MiB |
+
+**Indexing time per 100K LOC: about 1.3 s (4+ workers), 1.9 s (1 worker).** Parsing scales to about 2x
+with 4 workers; more workers do not help because the single-threaded main process (reading blobs through
+`git cat-file`, pickling results, PostgreSQL writes) becomes the limit. Resolution and DB time were not
+parallelized. Parsing 3,383 distinct blobs produced 6,254 symbols, 77,888 recorded call sites, 24,331
+resolved call edges and 1,104 SQL literals; the database is 48 MB. Of the call sites, 24,331 resolved
+and 54,237 did not (31% resolution rate): library calls, calls on receivers whose type is not statically
+visible, and function-typed values. Unresolved calls are counted, never guessed.
+
+Content addressing is visible even in the cold run: 3,597 files needed only 3,383 parses (214 files have
+identical content to another file).
+
+## Incremental indexing (12 real consecutive commits)
+
+| Commit | Src files changed | Blobs parsed | Files re-resolved | Memoized | Wall |
+|---|---|---|---|---|---|
+| 1b2df90b | 7 | 6 | 15 | 3,584 | 811 ms |
+| b495ed44 | 2 | 2 | 3 | 3,596 | 686 ms |
+| 953b76f4 | 4 | 4 | **1,401** | 2,198 | 1,408 ms |
+| 3ecf2c8d | 0 | 0 | 0 | 3,599 | 660 ms |
+| ac41823b | 2 | 2 | **1,390** | 2,209 | 1,316 ms |
+| 7a9009d2 | 7 | 7 | 8 | 3,597 | 685 ms |
+| b1eafc23 | **3,270** (move/rename) | **2** | 3,270 | 335 | 1,739 ms |
+| f279fd13 | 1 | 1 | 1 | 3,605 | 642 ms |
+| 5fd98ad3 | 0 | 0 | 0 | 3,606 | 670 ms |
+| 4a6a44b5 | 21 | 19 | 39 | 3,572 | 1,213 ms |
+| 78ddeaff | 1 | 1 | 1 | 3,610 | 669 ms |
+| 17e858da | 0 | 0 | 0 | 3,611 | 720 ms |
+
+Median **720 ms** vs a 3.85 s cold index (about 5x faster); worst case 1.74 s. Re-indexing an
+unchanged commit: 0 parsed, 0 resolved, 614 ms.
+
+What the table shows:
+- Parsing tracks *content*, not paths: the commit that moved 3,270 files parsed only 2 blobs.
+- Re-resolution tracks the *import graph*: two commits that changed 4 and 2 files re-resolved ~1,400 files
+  each because they changed modules that ~1,400 files import. That is the correct cost, not waste: those
+  files' dependency hash changed.
+- There is a ~0.65 s floor even when nothing relevant changed. It is spent listing the tree, loading
+  imports/exports for every file to compute dependency hashes, and writing the 3.6k-row manifest. It is a
+  known optimization target (Phase 8), not yet profiled.
+
+## Extraction oracle (is anything missing?)
+
+Independent count of definition nodes by raw tree-sitter node type (sharing no code with the extractor)
+vs. extracted symbols on the same 3,611 files: methods **3,117 = 2,724 methods + 309 constructors + 84
+accessors (exact match)**; classes 2,319 vs 2,306 (+13 class expressions the oracle's narrow definition
+skips); functions 1,078 vs 731 (the extractor also names functions bound through object literals and
+assignments). Total 6,514 vs 6,154 (1.06x). Nothing is under-extracted.
+
+## Call-graph accuracy vs the TypeScript compiler
+
+Ground truth: the real TypeScript type checker (`bench/tsc_oracle.js`, TypeScript 5.x) resolving every
+call/`new` in `packages/typeorm/src` (496 files, 17,065 call sites; **9,805** resolve to a declaration
+inside the library, the rest are library/`any` calls). Overload signatures are mapped to their
+implementations. `bench/call_graph_eval.py` compares edges at HEAD.
+
+| Metric | Result |
+|---|---|
+| Edges produced in `src` | 7,459 |
+| **Precision**, edges the checker can verify | **100%** (7,375 correct, 0 wrong) |
+| Edges the checker cannot verify (implicit constructors) | 84 |
+| **Recall**, checker-resolved calls recovered | **75.8%** (7,433 of 9,805) |
+
+Per resolution kind (all 0 wrong): this 2,881 · this_inherited 935 · new 1,594 · class_member 1,056 ·
+typed_member 578 · local 129 · import 114 · super 88.
+
+How it got here (each fix found by this evaluation, with a regression test): the first scoring showed
+95.6% precision. Most "errors" were evaluator artifacts (overload signatures, anonymous functions,
+implicit constructors) and were fixed in the evaluator; 4 were real: a monkey-patch on one function's
+`cursor` parameter captured `cursor.x()` in unrelated functions (fixed with lexical visibility), and
+`super()` / `super.m()` were unhandled (added, 88 edges, all correct).
+
+Misses (recall gap) are calls whose target requires type inference the indexer deliberately does not
+do: property chains (`this.a.b.c()`), values typed by return types, and function-typed parameters. Top
+missed targets: `clone`, `getEntityValue`, `primaryKeyName`, `broadcast`, calls through `FunctionType`.
+
+Limits of this evaluation: one codebase (a class-heavy TypeScript ORM), library code only, comparison by
+declaration-line containment and name. It says nothing yet about JavaScript-heavy or functional-style
+code, nor about route extraction on a large Express/Fastify application (typeorm has none; route
+correctness is covered by the fixture-based tests and the demo app).

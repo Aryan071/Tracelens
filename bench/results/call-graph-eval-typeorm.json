@@ -1,0 +1,112 @@
+{
+ "src_prefix": "packages/typeorm/src/",
+ "my_edges_in_src": 7459,
+ "checker_resolved_calls_into_src": 9805,
+ "precision_of_verifiable": 1.0,
+ "edges_correct": 7375,
+ "edges_wrong": 0,
+ "edges_unverified_checker_has_no_repo_target": 84,
+ "recall_vs_checker": 0.7581,
+ "calls_found": 7433,
+ "by_resolution_kind": {
+  "class_member": {
+   "correct": 1056,
+   "wrong": 0,
+   "unverified": 0,
+   "precision": 1.0
+  },
+  "import": {
+   "correct": 114,
+   "wrong": 0,
+   "unverified": 0,
+   "precision": 1.0
+  },
+  "local": {
+   "correct": 129,
+   "wrong": 0,
+   "unverified": 0,
+   "precision": 1.0
+  },
+  "new": {
+   "correct": 1594,
+   "wrong": 0,
+   "unverified": 84,
+   "precision": 1.0
+  },
+  "super": {
+   "correct": 88,
+   "wrong": 0,
+   "unverified": 0,
+   "precision": 1.0
+  },
+  "this": {
+   "correct": 2881,
+   "wrong": 0,
+   "unverified": 0,
+   "precision": 1.0
+  },
+  "this_inherited": {
+   "correct": 935,
+   "wrong": 0,
+   "unverified": 0,
+   "precision": 1.0
+  },
+  "typed_member": {
+   "correct": 578,
+   "wrong": 0,
+   "unverified": 0,
+   "precision": 1.0
+  }
+ },
+ "top_missed_targets": [
+  [
+   "call:clone",
+   105
+  ],
+  [
+   "call:getEntityValue",
+   100
+  ],
+  [
+   "call:primaryKeyName",
+   84
+  ],
+  [
+   "call:broadcast",
+   83
+  ],
+  [
+   "call:FunctionType",
+   74
+  ],
+  [
+   "call:foreignKeyName",
+   54
+  ],
+  [
+   "call:uniqueConstraintName",
+   53
+  ],
+  [
+   "call:indexName",
+   51
+  ],
+  [
+   "call:query",
+   48
+  ],
+  [
+   "call:execute",
+   48
+  ],
+  [
+   "call:where",
+   47
+  ],
+  [
+   "call:escape",
+   46
+  ]
+ ],
+ "wrong_examples": []
+}

@@ -264,10 +264,19 @@ class Resolver:
     def _member_of(self, path: str, cls: int, member: str) -> int:
         return self._kids(path).get((cls, member), -1)
 
-    def _object_member(self, path: str, var: str, member: str) -> int:
-        """`const api = { list() {} }` -> symbol qualified `api.list`."""
-        for s in self.files[path].symbols:
-            if s.qualified_name == f"{var}.{member}":
+    def _object_member(self, path: str, var: str, member: str, scope: int) -> int:
+        """`const api = { list() {} }` / `api.list = fn` -> symbol qualified `api.list`, but only if
+        its definition is lexically visible from `scope` (module level, or an enclosing function).
+        Without this, a monkey-patch on one function's `cursor` would match every `cursor.x()`."""
+        syms = self.files[path].symbols
+        visible = {-1}
+        cur = scope
+        while cur != -1:
+            visible.add(cur)
+            cur = syms[cur].parent_local_id
+        want = f"{var}.{member}"
+        for s in syms:
+            if s.qualified_name == want and s.parent_local_id in visible:
                 return s.local_id
         return -1
 
@@ -323,7 +332,7 @@ class Resolver:
                 if m >= 0:
                     return SymRef(tpath, m), "class_member", 0.9
             elif tvar:
-                m = self._object_member(tpath, tvar, member)
+                m = self._object_member(tpath, tvar, member, -1)
                 if m >= 0:
                     return SymRef(tpath, m), "object_member", 0.9
             return None
@@ -332,7 +341,7 @@ class Resolver:
             m = self._member_of(path, lid, member)
             if m >= 0:
                 return SymRef(path, m), "class_member", 0.9
-        m = self._object_member(path, base, member)
+        m = self._object_member(path, base, member, scope)
         if m >= 0:
             return SymRef(path, m), "object_member", 0.9
         ty = self._local_type(path, scope, base)
@@ -364,6 +373,33 @@ class Resolver:
         if hit is None:
             return None
         return hit[0], "typed_member", 0.7 if hit[1] else 0.8
+
+    def _enclosing_class(self, path: str, scope: int) -> int:
+        syms = self.files[path].symbols
+        cur = scope
+        while cur != -1 and syms[cur].kind != "class":
+            cur = syms[cur].parent_local_id
+        return cur
+
+    def _base_class(self, path: str, cls: int) -> SymRef | None:
+        ext = self._symbol(path, cls).extends
+        return self._class_for_type(path, -1, ext) if ext else None
+
+    def resolve_super(
+        self, path: str, scope: int, member: str | None
+    ) -> tuple[SymRef, str, float] | None:
+        """`super(...)` -> base constructor; `super.m()` -> base method (or one level above it)."""
+        cls = self._enclosing_class(path, scope)
+        if cls == -1:
+            return None
+        base = self._base_class(path, cls)
+        if base is None:
+            return None
+        if member is None:
+            ctor = self._member_of(base.path, base.local_id, "constructor")
+            return (SymRef(base.path, ctor), "super", 0.9) if ctor >= 0 else None
+        found = self._method_of_class(base, member)
+        return (found[0], "super", 0.9) if found is not None else None
 
     def resolve_this(self, path: str, scope: int, member: str) -> tuple[SymRef, str, float] | None:
         syms = self.files[path].symbols
@@ -401,6 +437,10 @@ class Resolver:
             return r, "local" if local else "import", 0.95
         if c.kind == "this" and c.member:
             return self.resolve_this(path, c.caller_local_id, c.member)
+        if c.kind == "super_call":
+            return self.resolve_super(path, c.caller_local_id, None)
+        if c.kind == "super" and c.member:
+            return self.resolve_super(path, c.caller_local_id, c.member)
         if c.kind == "this_field" and c.base and c.member:
             return self.resolve_this_field(path, c.caller_local_id, c.base, c.member)
         if c.kind == "member" and c.base and c.member:

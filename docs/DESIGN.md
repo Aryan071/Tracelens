@@ -35,6 +35,11 @@ Python service (`ingest/`) exposing OTLP/gRPC (:4317) and OTLP/HTTP protobuf (:4
 
 Delivery guarantee: every acknowledged span is stored exactly once under overload, a ClickHouse outage, and graceful restart (tested). Acknowledged-but-unflushed spans can be lost on a hard crash (bounded by the buffer). OTLP is at-least-once, so a lost response can yield a duplicate on client retry. Spans older than the retention window are discarded by TTL at insert.
 
+### Code indexer (implemented in Phase 2)
+Python package `indexer/` (tree-sitter TypeScript/JavaScript, git CLI, PostgreSQL via psycopg). Parsed facts are content-addressed by git blob SHA (ADR-0009); a commit is a `path -> blob` manifest published atomically. Per file it extracts symbols (functions, methods, constructors, accessors, classes, synthetic route handlers), imports/exports (ESM, CommonJS, re-exports), calls, Express/Fastify route registrations with cross-file mount composition (ADR-0013), SQL string literals with their enclosing symbol, and statically visible class types for receivers. Cross-file call resolution is memoized on a dependency hash so a commit re-resolves only changed files and their importers (ADR-0010) and uses no type checker (ADR-0011). CLI: `tracelens-index index|query` (`query route "POST /orders"`, `symbol`, `callers`, `callees`). Measured results and accuracy against the TypeScript compiler: [BENCHMARKS.md](BENCHMARKS.md).
+
+Interfaces for Phase 3 (trace->code mapping): symbols carry repo-relative `path`, `name`, `qualified_name` and line spans, so OTel `code.file.path` + `code.function.name` map by lookup; `route_handlers(commit, method, path)` serves tier (b) (`http.route` + method); span-name fuzzy matching (tier c) is built on `find_symbols`.
+
 ### Repository layout
 `/schema /engine /ingest /indexer /api /extension /demo /docs /bench /scripts`. Builds run in Docker (ADR-0001).
 
@@ -57,4 +62,10 @@ Delivery guarantee: every acknowledged span is stored exactly once under overloa
 7. `code.line.number` is not emitted by the demo: compiled-JS lines are wrong without source maps. Resolve in Phase 5 (source-map support) or by emitting TS lines at build time.
 8. ESLint is not yet configured; Python is gated by `ruff` and `mypy --strict`; TypeScript only by strict `tsc` (ESLint not yet configured).
 9. The e2e job (deploy a bad version, assert the guilty commit) does not exist yet; it arrives in Phase 4. CI intentionally has no placeholder job that pretends to pass.
-10. PostgreSQL runs in compose for the demo only; TraceLens metadata tables arrive in Phase 2.
+10. The code index lives in a separate `tracelens` database on the same PostgreSQL server as the demo's `demo` database (created and migrated by `tracelens-index`). Before any real deployment these should be separate servers; the compose file shares one for convenience.
+11. Call-graph recall is 75.8% on typeorm `src` (precision 100%); misses need type inference (property chains, return types, function-typed values). Is that enough for critical-path attribution, or should receiver typing be extended (e.g. simple return-type inference)? Decide with Phase 3 data on the demo app.
+12. tsconfig `paths` aliases (`@/foo`) are not resolved: such imports are recorded as unresolved, not guessed. Add alias support if a target codebase relies on it.
+13. Incremental indexing has a ~0.65 s floor on a 3.6k-file repo even when nothing relevant changed (tree listing, loading imports/exports to compute dependency hashes, manifest write). Not yet profiled; a Phase 8 candidate.
+14. Route extraction is validated by fixtures and the demo app, not on a large real Express/Fastify codebase; NestJS decorator routing is not extracted.
+15. `py-tree-sitter` 0.26.0 crashes in `Node.start_point`/`end_point` (ADR-0012); re-check before upgrading the dependency.
+16. Python and Go indexing (named as "later" in the spec) are not started.

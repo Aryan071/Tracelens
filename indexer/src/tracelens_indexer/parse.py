@@ -13,6 +13,7 @@ of SQL fragments is not reassembled; computed property names are not named.
 
 from __future__ import annotations
 
+import bisect
 import hashlib
 import re
 from typing import Any
@@ -170,8 +171,20 @@ class _Extractor:
         self.require_done: set[int] = set()
         self.router_vars: set[str] = set()
         self.bindings: list[TypeBinding] = []
+        # Line/column come from byte offsets: py-tree-sitter 0.26.0's Node.start_point/end_point
+        # segfault under sustained use, so they are deliberately never called.
+        self._newlines: list[int] = [m.start() for m in re.finditer(b"\n", src)]
 
     # ---- small helpers -------------------------------------------------
+    def line_of(self, byte: int) -> int:
+        """1-based line containing `byte`."""
+        return bisect.bisect_left(self._newlines, byte) + 1
+
+    def col_of(self, byte: int) -> int:
+        """0-based byte column of `byte` within its line (same convention as tree-sitter)."""
+        i = bisect.bisect_left(self._newlines, byte)
+        return byte - (self._newlines[i - 1] + 1 if i else 0)
+
     def text(self, n: Node) -> str:
         return self.src[n.start_byte : n.end_byte].decode("utf8", "replace")
 
@@ -244,10 +257,10 @@ class _Extractor:
                 kind=kind,
                 name=name,
                 qualified_name=qualified,
-                start_line=node.start_point.row + 1,
-                start_col=node.start_point.column,
-                end_line=node.end_point.row + 1,
-                end_col=node.end_point.column,
+                start_line=self.line_of(node.start_byte),
+                start_col=self.col_of(node.start_byte),
+                end_line=self.line_of(node.end_byte),
+                end_col=self.col_of(node.end_byte),
                 exported=exported,
                 is_async=is_async,
                 signature=sig[:200],
@@ -418,7 +431,7 @@ class _Extractor:
         prop = self.text(prop_node)
         known = self.framework in ("express", "fastify")
         scope = self.enclosing()
-        line = call.start_point.row + 1
+        line = self.line_of(call.start_byte)
         conf = 1.0 if known else 0.6
 
         if prop in _VERBS:
@@ -663,7 +676,7 @@ class _Extractor:
 
     # ---- imports / exports ------------------------------------------------
     def on_import(self, n: Node) -> None:
-        line = n.start_point.row + 1
+        line = self.line_of(n.start_byte)
         src_node = n.child_by_field_name("source")
         spec = self.str_value(src_node) if src_node is not None else None
         had_binding = False
@@ -703,7 +716,7 @@ class _Extractor:
             self.imports.append(Import(None, None, spec, "side_effect", line))
 
     def on_export(self, n: Node, children: list[Node]) -> None:
-        line = n.start_point.row + 1
+        line = self.line_of(n.start_byte)
         is_default = any(c.type == "default" for c in children)
         src_node = n.child_by_field_name("source")
         spec = self.str_value(src_node) if src_node is not None else None
@@ -781,7 +794,7 @@ class _Extractor:
         full = self.ref_text(left)
         if full is None:
             return
-        line = n.start_point.row + 1
+        line = self.line_of(n.start_byte)
         if full == "module.exports":
             if right.type == "object":
                 for c in right.named_children:
@@ -825,7 +838,7 @@ class _Extractor:
         if factory in _ROUTER_FACTORIES:
             self.router_vars.add(nm)
         ty = self.type_name(n.child_by_field_name("type")) or self.new_type(value)
-        self.add_binding(self.enclosing(), nm, ty, False, n.start_point.row + 1)
+        self.add_binding(self.enclosing(), nm, ty, False, self.line_of(n.start_byte))
 
     def on_field(self, n: Node) -> None:
         nm = n.child_by_field_name("name") or n.child_by_field_name("property")
@@ -834,7 +847,7 @@ class _Extractor:
         ty = self.type_name(n.child_by_field_name("type")) or self.new_type(
             n.child_by_field_name("value")
         )
-        self.add_binding(self.enclosing(), self.text(nm), ty, True, n.start_point.row + 1)
+        self.add_binding(self.enclosing(), self.text(nm), ty, True, self.line_of(n.start_byte))
 
     def on_param(self, n: Node) -> None:
         pat = n.child_by_field_name("pattern")
@@ -854,10 +867,10 @@ class _Extractor:
                     self.text(pat),
                     ty,
                     True,
-                    n.start_point.row + 1,
+                    self.line_of(n.start_byte),
                 )
             return
-        self.add_binding(owner, self.text(pat), ty, False, n.start_point.row + 1)
+        self.add_binding(owner, self.text(pat), ty, False, self.line_of(n.start_byte))
 
     def on_require_declarator(self, n: Node) -> None:
         value = n.child_by_field_name("value")
@@ -880,7 +893,7 @@ class _Extractor:
         if s is None:
             return
         spec = self.str_value(s)
-        line = n.start_point.row + 1
+        line = self.line_of(n.start_byte)
         self.require_done.add(call.start_byte)
         if name.type == "identifier":
             local = self.text(name)
@@ -906,13 +919,16 @@ class _Extractor:
         argn = n.child_by_field_name("arguments")
         if fn is None:
             return
-        line = n.start_point.row + 1
+        line = self.line_of(n.start_byte)
         args = (
             [c for c in argn.named_children if c.type != "comment"]
             if argn is not None and argn.type == "arguments"
             else []
         )
         ft = fn.type
+        if ft == "super":
+            self.calls.append(Call(self.enclosing(), "super_call", "super", None, None, line))
+            return
         if ft == "import":
             if args and args[0].type == "string":
                 self.imports.append(Import(None, None, self.str_value(args[0]), "dynamic", line))
@@ -942,7 +958,19 @@ class _Extractor:
                 parts.append(self.text(p))
                 cur = cur.child_by_field_name("object")
             member = parts[0]
-            if cur is not None and cur.type in ("identifier", "this"):
+            if cur is not None and cur.type == "super":
+                kind = "super" if len(parts) == 1 else "chain"
+                self.calls.append(
+                    Call(
+                        self.enclosing(),
+                        kind,
+                        ".".join(["super", *reversed(parts)]),
+                        None,
+                        member,
+                        line,
+                    )
+                )
+            elif cur is not None and cur.type in ("identifier", "this"):
                 base = self.text(cur)
                 if base in _NOISE_BASES:
                     return
@@ -1000,7 +1028,7 @@ class _Extractor:
             text = raw.decode("utf8", "replace")
         via = self.sql_via.get(n.start_byte)
         if looks_like_sql(text) or (via == "sql" and text.strip()):
-            self.sql.append(SqlLiteral(self.enclosing(), text, via, n.start_point.row + 1))
+            self.sql.append(SqlLiteral(self.enclosing(), text, via, self.line_of(n.start_byte)))
 
     # ---- driver -------------------------------------------------------------
     def run(self, root: Node) -> None:
@@ -1132,7 +1160,12 @@ class _Extractor:
                         member = ref.rsplit(".", 1)[-1] if "." in ref else None
                         self.calls.append(
                             Call(
-                                self.enclosing(), "new", ref, base, member, node.start_point.row + 1
+                                self.enclosing(),
+                                "new",
+                                ref,
+                                base,
+                                member,
+                                self.line_of(node.start_byte),
                             )
                         )
             elif t == "import_statement":

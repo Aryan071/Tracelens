@@ -359,3 +359,40 @@ def test_untyped_receivers_stay_unresolved_even_if_a_class_has_the_method() -> N
     )
     es, unresolved = r.resolve_file_calls("a.ts")
     assert es == [] and unresolved == 2
+
+
+# ------------------------------------------------- regressions found by scoring against tsc
+def test_object_member_requires_the_definition_to_be_visible_from_the_call_site() -> None:
+    """A monkey-patch on one function's `cursor` must not capture `cursor.toArray()` elsewhere."""
+    r = build(
+        {
+            "a.ts": "export function patch(cursor) {\n cursor.toArray = async () => 1;\n}\n"
+            "export function other(cursor) {\n return cursor.toArray();\n}\n"
+            "export function same(cursor) {\n cursor.fetch = () => 1;\n return cursor.fetch();\n}\n"
+            "const api = { list() {} };\nexport function user() { api.list(); }"
+        }
+    )
+    got = {(c, e) for c, e, _ in edges(r, "a.ts")}
+    assert ("other", "a.ts:cursor.toArray") not in got  # different scope: not the patched one
+    assert ("same", "a.ts:cursor.fetch") in got  # patch and call share a scope: resolvable
+    assert ("user", "a.ts:api.list") in got  # module-level object literal: visible everywhere
+
+
+def test_super_calls_resolve_to_the_base_class() -> None:
+    r = build(
+        {
+            "d.ts": "import { Base } from './b';\nexport class D extends Base {\n"
+            " constructor() { super(); }\n run() { super.go(); super.up(); }\n}",
+            "b.ts": "import { Root } from './r';\nexport class Base extends Root {\n"
+            " constructor() { super(); }\n go() {}\n}",
+            "r.ts": "export class Root { up() {} }",
+        }
+    )
+    assert edges(r, "d.ts") == {
+        ("D.constructor", "b.ts:Base.constructor", "super"),
+        ("D.run", "b.ts:Base.go", "super"),
+        ("D.run", "r.ts:Root.up", "super"),  # inherited from the base's own base
+    }
+    assert ("Base.constructor", "r.ts:Root", "super") not in edges(
+        r, "b.ts"
+    )  # Root has no explicit ctor
