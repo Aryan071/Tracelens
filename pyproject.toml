@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["engine"]
+members = ["engine", "ingest"]
 
 [tool.ruff]
 line-length = 100
@@ -13,8 +13,27 @@ select = ["E", "F", "I", "B", "UP", "S"]
 "**/tests/**" = ["S101"]
 
 [tool.mypy]
+explicit_package_bases = true
+mypy_path = "engine/src:ingest/src"
 strict = true
 plugins = ["pydantic.mypy"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["tracelens"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["engine", "ingest"]
+markers = ["integration: needs a running ClickHouse (see Makefile test-integration)"]
+
+# grpcio / protobuf ship without inline types; stub packages (types-grpcio,
+# types-protobuf) would be extra dependencies, so relax only these imports.
+[[tool.mypy.overrides]]
+module = ["grpc", "grpc.*", "google.protobuf.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["tracelens_ingest.servers"]
+disallow_untyped_calls = false
+disallow_subclassing_any = false

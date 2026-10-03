@@ -4,12 +4,12 @@ UV_IMG  := ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 NODE_IMG := node:20-alpine
 J2TS_VERSION := 15.0.2
 
-.PHONY: gen gen-py gen-ts gen-check lint test-py
+.PHONY: gen gen-py gen-ts gen-check fmt lint test-py
 gen: gen-py gen-ts
 
 # Run a command inside the pinned uv/Python image (see ADR-0001, ADR-0004).
 UV = docker run --rm -u $(UID_GID) -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
-     -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen
+     -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen --all-packages
 
 gen-py:
 	$(UV) datamodel-codegen --input schema/evidence.v1.schema.json --input-file-type jsonschema \
@@ -17,11 +17,15 @@ gen-py:
 	  --target-python-version 3.12 --use-annotated --use-title-as-name --field-constraints --use-union-operator \
 	  --use-standard-collections --disable-timestamp --formatters ruff-format
 
-lint:
-	$(UV) ruff check . && $(UV) ruff format --check . && $(UV) mypy engine/src engine/tests
+fmt:
+	$(UV) ruff check --fix . ; $(UV) ruff format .
 
+lint:
+	$(UV) ruff check . && $(UV) ruff format --check . && $(UV) mypy engine/src engine/tests ingest/src ingest/tests
+
+UVP = $(UV)
 test-py:
-	$(UV) pytest engine
+	$(UV) pytest engine ingest -m "not integration"
 
 gen-ts:
 	docker run --rm -u $(UID_GID) -e HOME=/tmp -e npm_config_cache=/tmp/npm -v $(CURDIR):/w -w /w $(NODE_IMG) sh -c '\

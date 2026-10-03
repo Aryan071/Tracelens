@@ -1,0 +1,24 @@
+[project]
+name = "tracelens-ingest"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+  "grpcio>=1.66",
+  "opentelemetry-proto>=1.27",
+  "starlette>=0.40",
+  "uvicorn>=0.32",
+  "uvloop>=0.21",
+  "httptools>=0.6",
+  "clickhouse-connect>=0.8",
+  "prometheus-client>=0.21",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tracelens_ingest"]
+
+[dependency-groups]
+dev = ["pytest-asyncio>=0.24", "httpx>=0.27"]
