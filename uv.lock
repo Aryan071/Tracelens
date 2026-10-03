@@ -1184,7 +1184,10 @@ name = "tracelens-engine"
 version = "0.0.0"
 source = { editable = "engine" }
 dependencies = [
+    { name = "clickhouse-connect" },
+    { name = "psycopg", extra = ["binary"] },
     { name = "pydantic" },
+    { name = "tracelens-indexer" },
 ]
 
 [package.dev-dependencies]
@@ -1196,7 +1199,12 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2.9,<3" }]
+requires-dist = [
+    { name = "clickhouse-connect", specifier = ">=0.8" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
+    { name = "pydantic", specifier = ">=2.9,<3" },
+    { name = "tracelens-indexer", editable = "indexer" },
+]
 
 [package.metadata.requires-dev]
 dev = [

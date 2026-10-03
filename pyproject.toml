@@ -10,13 +10,16 @@ extend-exclude = ["engine/src/tracelens/evidence/models.py"]  # generated
 select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "E501", "S608", "S603", "S607"]  # asserts, long SQL literals, test-only f-string SQL
+"**/tests/**" = ["S101", "E501", "S608", "S603", "S607", "S311"]  # asserts, long SQL literals, test-only f-string SQL
 "bench/**" = ["S101", "S106", "S310", "S311", "S603", "S607", "E501"]  # load tool, not shipped code
+"engine/src/tracelens/cli.py" = ["E501"]  # table-formatting f-strings
+"engine/src/tracelens/loader.py" = ["E501", "S608"]  # SQL literals; the interpolated fragment is a module constant
+"engine/src/tracelens/symbols_pg.py" = ["E501"]  # SQL literals
 "indexer/src/tracelens_indexer/store.py" = ["E501", "S608"]  # long SQL literals; fragments are constants
 
 [tool.mypy]
 explicit_package_bases = true
-mypy_path = "engine/src:ingest/src:indexer/src"
+mypy_path = "engine/src:ingest/src:indexer/src:engine/tests"
 strict = true
 plugins = ["pydantic.mypy"]
 
@@ -28,6 +31,7 @@ asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
 asyncio_default_fixture_loop_scope = "function"
 testpaths = ["engine", "ingest", "indexer"]
+pythonpath = ["engine/tests"]  # lets engine tests import the shared spanfactory helper
 markers = ["integration: needs a running ClickHouse (see Makefile test-integration)"]
 
 # grpcio / protobuf ship without inline types; stub packages (types-grpcio,

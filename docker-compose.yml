@@ -8,6 +8,7 @@ x-demo: &demo
   environment: &demo-env
     DATABASE_URL: postgres://tracelens:tracelens@postgres:5432/demo
     TRACE_EXPORTERS: ${TRACE_EXPORTERS:-otlp}   # comma list: otlp, console
+    DEMO_FAULTS: ${DEMO_FAULTS:-}               # e.g. payments.chargeCard:50 (test hook)
     OTEL_EXPORTER_OTLP_ENDPOINT: http://ingest:4318
     DEMO_VERSION: ${DEMO_VERSION:-1.0.0}
 

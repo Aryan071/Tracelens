@@ -1,4 +1,5 @@
 import { trace, SpanStatusCode } from "@opentelemetry/api";
+import { injectedDelay } from "./faults";
 
 const tracer = trace.getTracer("tracelens-demo");
 
@@ -11,6 +12,7 @@ const tracer = trace.getTracer("tracelens-demo");
 export async function traced<T>(name: string, file: string, fn: () => Promise<T>): Promise<T> {
   return tracer.startActiveSpan(name, { attributes: { "code.function.name": name, "code.file.path": file } }, async (span) => {
     try {
+      await injectedDelay(name); // no-op unless DEMO_FAULTS names this function
       return await fn();
     } catch (err) {
       span.recordException(err as Error);

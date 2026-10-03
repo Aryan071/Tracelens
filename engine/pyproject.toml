@@ -2,7 +2,15 @@
 name = "tracelens-engine"
 version = "0.0.0"
 requires-python = ">=3.12"
-dependencies = ["pydantic>=2.9,<3"]
+dependencies = [
+  "pydantic>=2.9,<3",
+  "tracelens-indexer",
+  "clickhouse-connect>=0.8",
+  "psycopg[binary]>=3.2",
+]
+
+[tool.uv.sources]
+tracelens-indexer = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]
