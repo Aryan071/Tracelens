@@ -1,0 +1,20 @@
+[project]
+name = "tracelens-indexer"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+  "tree-sitter>=0.25",
+  "tree-sitter-typescript>=0.23",
+  "tree-sitter-javascript>=0.25",
+  "psycopg[binary]>=3.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tracelens_indexer"]
+
+[project.scripts]
+tracelens-index = "tracelens_indexer.cli:main"

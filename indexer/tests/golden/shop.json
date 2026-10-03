@@ -1,0 +1,368 @@
+{
+ "edges": [
+  {
+   "callee": "src/services/orderService.ts:OrderService",
+   "caller": "src/controllers/orderController.ts:OrderController",
+   "line": 4,
+   "resolution": "new"
+  },
+  {
+   "callee": "src/services/orderService.ts:OrderService.place",
+   "caller": "src/controllers/orderController.ts:OrderController.create",
+   "line": 7,
+   "resolution": "typed_member"
+  },
+  {
+   "callee": "src/services/orderService.ts:OrderService.find",
+   "caller": "src/controllers/orderController.ts:OrderController.get",
+   "line": 11,
+   "resolution": "typed_member"
+  },
+  {
+   "callee": "src/controllers/orderController.ts:OrderController.helper",
+   "caller": "src/controllers/orderController.ts:OrderController.listItems",
+   "line": 15,
+   "resolution": "class_member"
+  },
+  {
+   "callee": "src/db/pool.ts:pool.query",
+   "caller": "src/db/queries.ts:findOrder",
+   "line": 9,
+   "resolution": "object_member"
+  },
+  {
+   "callee": "src/db/pool.ts:pool.query",
+   "caller": "src/db/queries.ts:insertOrder",
+   "line": 4,
+   "resolution": "object_member"
+  },
+  {
+   "callee": "src/controllers/orderController.ts:OrderController.get",
+   "caller": "src/routes/orders.ts:GET /:id",
+   "line": 11,
+   "resolution": "typed_member"
+  },
+  {
+   "callee": "src/controllers/orderController.ts:OrderController",
+   "caller": "src/routes/orders.ts:<module>",
+   "line": 6,
+   "resolution": "new"
+  },
+  {
+   "callee": "src/controllers/orderController.ts:OrderController.create",
+   "caller": "src/routes/orders.ts:POST /",
+   "line": 9,
+   "resolution": "typed_member"
+  },
+  {
+   "callee": "src/util/format.js:formatUser",
+   "caller": "src/routes/users.js:GET /:id",
+   "line": 6,
+   "resolution": "import"
+  },
+  {
+   "callee": "src/db/queries.ts:findOrder",
+   "caller": "src/services/orderService.ts:OrderService.find",
+   "line": 12,
+   "resolution": "import"
+  },
+  {
+   "callee": "src/db/queries.ts:insertOrder",
+   "caller": "src/services/orderService.ts:OrderService.place",
+   "line": 8,
+   "resolution": "import"
+  },
+  {
+   "callee": "src/services/orderService.ts:OrderService.validate",
+   "caller": "src/services/orderService.ts:OrderService.place",
+   "line": 7,
+   "resolution": "this"
+  },
+  {
+   "callee": "src/services/base.ts:BaseService.audit",
+   "caller": "src/services/orderService.ts:OrderService.place",
+   "line": 6,
+   "resolution": "this_inherited"
+  }
+ ],
+ "routes": [
+  {
+   "at": "src/routes/orders.ts:8",
+   "confidence": 1.0,
+   "handler": "src/routes/orders.ts:POST /",
+   "handler_ref": null,
+   "middleware": [
+    "requireAuth"
+   ],
+   "route": "POST /api/orders/"
+  },
+  {
+   "at": "src/routes/orders.ts:11",
+   "confidence": 1.0,
+   "handler": "src/routes/orders.ts:GET /:id",
+   "handler_ref": null,
+   "middleware": [],
+   "route": "GET /api/orders/:id"
+  },
+  {
+   "at": "src/routes/orders.ts:12",
+   "confidence": 1.0,
+   "handler": "src/routes/orders.ts:DELETE /:id/items",
+   "handler_ref": null,
+   "middleware": [],
+   "route": "DELETE /api/orders/:id/items"
+  },
+  {
+   "at": "src/routes/orders.ts:12",
+   "confidence": 1.0,
+   "handler": "src/controllers/orderController.ts:OrderController.listItems",
+   "handler_ref": "OrderController.listItems",
+   "middleware": [],
+   "route": "GET /api/orders/:id/items"
+  },
+  {
+   "at": "src/routes/users.js:5",
+   "confidence": 1.0,
+   "handler": "src/routes/users.js:GET /:id",
+   "handler_ref": null,
+   "middleware": [],
+   "route": "GET /api/users/:id"
+  },
+  {
+   "at": "src/app.ts:10",
+   "confidence": 1.0,
+   "handler": "src/util/health.ts:health",
+   "handler_ref": "health",
+   "middleware": [],
+   "route": "GET /healthz"
+  }
+ ],
+ "sql": [
+  {
+   "in": "insertOrder",
+   "line": 4,
+   "path": "src/db/queries.ts",
+   "text": "INSERT INTO orders (payload) VALUES ($1) RETURNING id",
+   "via": "pool.query"
+  },
+  {
+   "in": "findOrder",
+   "line": 8,
+   "path": "src/db/queries.ts",
+   "text": "SELECT id, payload FROM orders WHERE id = ?",
+   "via": null
+  }
+ ],
+ "symbols": [
+  {
+   "exported": true,
+   "kind": "class",
+   "lines": [
+    3,
+    21
+   ],
+   "path": "src/controllers/orderController.ts",
+   "symbol": "OrderController"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    6,
+    8
+   ],
+   "path": "src/controllers/orderController.ts",
+   "symbol": "OrderController.create"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    10,
+    12
+   ],
+   "path": "src/controllers/orderController.ts",
+   "symbol": "OrderController.get"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    14,
+    16
+   ],
+   "path": "src/controllers/orderController.ts",
+   "symbol": "OrderController.listItems"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    18,
+    20
+   ],
+   "path": "src/controllers/orderController.ts",
+   "symbol": "OrderController.helper"
+  },
+  {
+   "exported": false,
+   "kind": "function",
+   "lines": [
+    1,
+    1
+   ],
+   "path": "src/db/pool.ts",
+   "symbol": "pool.query"
+  },
+  {
+   "exported": true,
+   "kind": "function",
+   "lines": [
+    3,
+    5
+   ],
+   "path": "src/db/queries.ts",
+   "symbol": "insertOrder"
+  },
+  {
+   "exported": true,
+   "kind": "function",
+   "lines": [
+    7,
+    10
+   ],
+   "path": "src/db/queries.ts",
+   "symbol": "findOrder"
+  },
+  {
+   "exported": false,
+   "kind": "route_handler",
+   "lines": [
+    8,
+    10
+   ],
+   "path": "src/routes/orders.ts",
+   "symbol": "POST /"
+  },
+  {
+   "exported": false,
+   "kind": "route_handler",
+   "lines": [
+    11,
+    11
+   ],
+   "path": "src/routes/orders.ts",
+   "symbol": "GET /:id"
+  },
+  {
+   "exported": false,
+   "kind": "route_handler",
+   "lines": [
+    12,
+    14
+   ],
+   "path": "src/routes/orders.ts",
+   "symbol": "DELETE /:id/items"
+  },
+  {
+   "exported": false,
+   "kind": "route_handler",
+   "lines": [
+    5,
+    7
+   ],
+   "path": "src/routes/users.js",
+   "symbol": "GET /:id"
+  },
+  {
+   "exported": true,
+   "kind": "class",
+   "lines": [
+    1,
+    5
+   ],
+   "path": "src/services/base.ts",
+   "symbol": "BaseService"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    2,
+    4
+   ],
+   "path": "src/services/base.ts",
+   "symbol": "BaseService.audit"
+  },
+  {
+   "exported": true,
+   "kind": "class",
+   "lines": [
+    4,
+    18
+   ],
+   "path": "src/services/orderService.ts",
+   "symbol": "OrderService"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    5,
+    9
+   ],
+   "path": "src/services/orderService.ts",
+   "symbol": "OrderService.place"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    11,
+    13
+   ],
+   "path": "src/services/orderService.ts",
+   "symbol": "OrderService.find"
+  },
+  {
+   "exported": false,
+   "kind": "method",
+   "lines": [
+    15,
+    17
+   ],
+   "path": "src/services/orderService.ts",
+   "symbol": "OrderService.validate"
+  },
+  {
+   "exported": true,
+   "kind": "function",
+   "lines": [
+    1,
+    3
+   ],
+   "path": "src/util/auth.ts",
+   "symbol": "requireAuth"
+  },
+  {
+   "exported": true,
+   "kind": "function",
+   "lines": [
+    1,
+    3
+   ],
+   "path": "src/util/format.js",
+   "symbol": "formatUser"
+  },
+  {
+   "exported": true,
+   "kind": "function",
+   "lines": [
+    1,
+    3
+   ],
+   "path": "src/util/health.ts",
+   "symbol": "health"
+  }
+ ]
+}

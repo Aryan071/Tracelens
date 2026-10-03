@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["engine", "ingest"]
+members = ["engine", "ingest", "indexer"]
 
 [tool.ruff]
 line-length = 100
@@ -10,12 +10,13 @@ extend-exclude = ["engine/src/tracelens/evidence/models.py"]  # generated
 select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "E501", "S608"]  # asserts, long SQL literals, test-only f-string SQL
+"**/tests/**" = ["S101", "E501", "S608", "S603", "S607"]  # asserts, long SQL literals, test-only f-string SQL
 "bench/**" = ["S101", "S106", "S310", "S311"]  # load tool, not shipped code
+"indexer/src/tracelens_indexer/store.py" = ["E501", "S608"]  # long SQL literals; fragments are constants
 
 [tool.mypy]
 explicit_package_bases = true
-mypy_path = "engine/src:ingest/src"
+mypy_path = "engine/src:ingest/src:indexer/src"
 strict = true
 plugins = ["pydantic.mypy"]
 
@@ -24,8 +25,9 @@ known-first-party = ["tracelens"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+addopts = "--import-mode=importlib"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["engine", "ingest"]
+testpaths = ["engine", "ingest", "indexer"]
 markers = ["integration: needs a running ClickHouse (see Makefile test-integration)"]
 
 # grpcio / protobuf ship without inline types; stub packages (types-grpcio,
