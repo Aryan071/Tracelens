@@ -4,8 +4,8 @@ UV_IMG  := tracelens-dev:py312
 NODE_IMG := node:20-alpine
 J2TS_VERSION := 15.0.2
 
-.PHONY: dev-image gen gen-py gen-ts gen-check fmt lint test-py test-integration
-gen: gen-py gen-ts
+.PHONY: dev-image gen gen-py gen-ts gen-openapi gen-check fmt lint test-py test-integration
+gen: gen-py gen-ts gen-openapi
 
 dev-image:
 	@docker image inspect $(UV_IMG) >/dev/null 2>&1 || docker build -q -t $(UV_IMG) -f tools/dev.Dockerfile tools >/dev/null
@@ -24,14 +24,17 @@ fmt: dev-image
 	$(UV) ruff check --fix . ; $(UV) ruff format .
 
 lint: dev-image
-	$(UV) ruff check . && $(UV) ruff format --check . && $(UV) mypy engine/src engine/tests ingest/src ingest/tests indexer/src indexer/tests
+	$(UV) ruff check . && $(UV) ruff format --check . && $(UV) mypy engine/src engine/tests ingest/src ingest/tests indexer/src indexer/tests api/src api/tests
 
 test-integration: dev-image  # needs `docker compose up -d clickhouse` (port 8123 on localhost)
 	docker run --rm --network host -u $(UID_GID) -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
-	  -e UPDATE_GOLDEN -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen --all-packages pytest engine ingest indexer -m integration
+	  -e UPDATE_GOLDEN -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen --all-packages pytest engine ingest indexer api -m integration
 
 test-py: dev-image
-	$(UV) pytest engine ingest indexer -m "not integration"
+	$(UV) pytest engine ingest indexer api -m "not integration"
+
+gen-openapi: dev-image
+	$(UV) python -c "import json; from tracelens_api.app import app; print(json.dumps(app.openapi(), indent=2, sort_keys=True))" > api/openapi.json
 
 gen-ts:
 	docker run --rm -u $(UID_GID) -e HOME=/tmp -e npm_config_cache=/tmp/npm -v $(CURDIR):/w -w /w $(NODE_IMG) sh -c '\
@@ -40,4 +43,4 @@ gen-ts:
 
 # CI: regenerate and fail if the committed output differs.
 gen-check: gen
-	git diff --exit-code -- engine/src/tracelens/evidence extension/src/gen
+	git diff --exit-code -- engine/src/tracelens/evidence extension/src/gen api/openapi.json

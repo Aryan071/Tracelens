@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["engine", "ingest", "indexer"]
+members = ["engine", "ingest", "indexer", "api"]
 
 [tool.ruff]
 line-length = 100
@@ -10,7 +10,7 @@ extend-exclude = ["engine/src/tracelens/evidence/models.py"]  # generated
 select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101", "E501", "S608", "S603", "S607", "S311"]  # asserts, long SQL literals, test-only f-string SQL
+"**/tests/**" = ["S101", "E501", "S608", "S603", "S607", "S311", "S106"]  # asserts, long SQL literals, test-only f-string SQL
 "bench/**" = ["S101", "S106", "S310", "S311", "S603", "S607", "S608", "E501"]  # load tool, not shipped code
 "scripts/**" = ["E501", "S101"]  # acceptance helpers
 "engine/src/tracelens/cli.py" = ["E501"]  # table-formatting f-strings
@@ -20,7 +20,7 @@ select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.mypy]
 explicit_package_bases = true
-mypy_path = "engine/src:ingest/src:indexer/src:engine/tests"
+mypy_path = "engine/src:ingest/src:indexer/src:api/src:engine/tests"
 strict = true
 plugins = ["pydantic.mypy"]
 
@@ -31,7 +31,7 @@ known-first-party = ["tracelens"]
 asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["engine", "ingest", "indexer"]
+testpaths = ["engine", "ingest", "indexer", "api"]
 pythonpath = ["engine/tests"]  # lets engine tests import the shared spanfactory helper
 markers = ["integration: needs a running ClickHouse (see Makefile test-integration)"]
 
