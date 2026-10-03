@@ -88,10 +88,66 @@ def main(argv: list[str] | None = None) -> None:
     pp.add_argument("--dsn", default=None)
     pp.add_argument("--top", type=int, default=12)
     pp.add_argument("--json", action="store_true")
+    pr = sub.add_parser(
+        "regressions", help="did a deployment regress latency, and which commit is to blame?"
+    )
+    pr.add_argument("--service", required=True)
+    pr.add_argument("--to", dest="to_version", required=True, help="the new version")
+    pr.add_argument(
+        "--from",
+        dest="from_version",
+        default=None,
+        help="the old version (default: the one before --to)",
+    )
+    pr.add_argument("--repo", required=True)
+    pr.add_argument("--repo-name", default=None)
+    pr.add_argument("--scope", default="")
+    pr.add_argument("--dsn", default=None)
+    pr.add_argument("--limit", type=int, default=3000, help="max requests per service version")
+    pr.add_argument(
+        "--warmup", type=float, default=5.0, help="seconds of the new version to discard"
+    )
+    pr.add_argument("--out", default=None, help="write Evidence JSON documents to this directory")
+    pr.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     until = datetime.now(UTC)
     window = a.window if isinstance(a.window, timedelta) else parse_window(a.window)
     since = until - window
+
+    if a.cmd == "regressions":
+        from pathlib import Path as _P
+
+        from tracelens_indexer import store as _store
+
+        from tracelens import pipeline
+        from tracelens.regression import DetectionConfig
+
+        run = pipeline.run_regressions(
+            service=a.service,
+            to_version=a.to_version,
+            from_version=a.from_version,
+            repo=a.repo,
+            repo_name=a.repo_name or _P(a.repo).resolve().name,
+            scope=a.scope,
+            dsn=a.dsn or _store.dsn_from_env(),
+            limit=a.limit,
+            cfg=DetectionConfig(warmup_s=a.warmup),
+        )
+        print(pipeline.render(run))
+        if a.out:
+            for p in pipeline.write_evidence(run, _P(a.out)):
+                print(f"evidence: {p}")
+        if a.json:
+            print(
+                json.dumps(
+                    [
+                        json.loads(e.model_dump_json(exclude_none=True))
+                        for e in run.analysis.evidence
+                    ],
+                    indent=1,
+                )
+            )
+        sys.exit(2 if any(r.status == "regression" for r in run.analysis.comparison.results) else 0)
 
     if a.cmd == "endpoints":
         for e in loader.list_endpoints(loader.connect(), since, until, a.service):

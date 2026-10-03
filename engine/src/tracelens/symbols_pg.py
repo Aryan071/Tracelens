@@ -61,3 +61,25 @@ def load_index(
             r.handler for r in routes if r.handler is not None and r.handler.key not in known
         )
     return MemorySymbolIndex(symbols, routes)
+
+
+def load_call_graph(dsn: str, *, repo_name: str, sha: str, scope: str = "") -> dict[str, set[str]]:
+    """Resolved call edges of an indexed commit as caller key -> callee keys (`path:qualified_name`)."""
+    scope = scope.strip("/")
+    graph: dict[str, set[str]] = {}
+    with psycopg.connect(dsn) as conn:
+        rid = store.find_repo(conn, repo_name)
+        if rid is None:
+            raise LookupError(f"repo {repo_name!r} is not indexed")
+        for caller_path, caller, callee_path, callee in conn.execute(
+            "SELECT e.caller_path, cs.qualified_name, e.callee_path, ts.qualified_name FROM call_edges e"
+            " JOIN commit_files cc ON cc.repo_id=%s AND cc.commit_sha=%s AND cc.scope=%s"
+            "   AND cc.path=e.caller_path AND cc.blob_sha=e.caller_blob AND cc.deps_hash=e.deps_hash"
+            " JOIN commit_files ce ON ce.repo_id=cc.repo_id AND ce.commit_sha=cc.commit_sha"
+            "   AND ce.scope=cc.scope AND ce.path=e.callee_path AND ce.blob_sha=e.callee_blob"
+            " JOIN symbols cs ON cs.blob_sha=e.caller_blob AND cs.local_id=e.caller_local"
+            " JOIN symbols ts ON ts.blob_sha=e.callee_blob AND ts.local_id=e.callee_local",
+            (rid, sha, scope),
+        ):
+            graph.setdefault(f"{caller_path}:{caller}", set()).add(f"{callee_path}:{callee}")
+    return graph

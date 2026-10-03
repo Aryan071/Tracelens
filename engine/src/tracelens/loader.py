@@ -137,3 +137,38 @@ def fetch_traces(
             s = _span(r)
             out[s.trace_id].append(s)
     return out
+
+
+@dataclass(frozen=True, slots=True)
+class RequestRef:
+    trace_id: str
+    span_id: str
+    method: str
+    route: str
+
+
+def fetch_version_requests(
+    client: Client, service: str, version: str, limit: int
+) -> tuple[datetime, datetime, list[RequestRef]]:
+    """SERVER requests handled by `service` at `version`, plus the time window that version was seen in."""
+    rows = client.query(
+        "SELECT min(start_time), max(start_time) FROM spans"
+        " WHERE service = {s:String} AND service_version = {v:String}",
+        parameters={"s": service, "v": version},
+    ).result_rows
+    since, until = rows[0][0], rows[0][1]
+    if since is None or until is None or since.year < 2000:
+        return datetime.now(), datetime.now(), []
+    until = until + timedelta(seconds=1)
+    hits = client.query(
+        "SELECT toString(trace_id), toString(span_id), http_method, http_route FROM spans"
+        " WHERE kind = 'SERVER' AND service = {s:String} AND service_version = {v:String}"
+        " AND http_route != '' AND start_time >= {since:DateTime64(9)} AND start_time < {until:DateTime64(9)}"
+        " ORDER BY start_time DESC LIMIT {limit:UInt32}",
+        parameters={"s": service, "v": version, "since": since, "until": until, "limit": limit},
+    ).result_rows
+    return (
+        since,
+        until,
+        [RequestRef(str(r[0]), str(r[1]), str(r[2]).upper(), str(r[3])) for r in hits],
+    )

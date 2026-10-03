@@ -14,6 +14,7 @@ select = ["E", "F", "I", "B", "UP", "S"]
 "bench/**" = ["S101", "S106", "S310", "S311", "S603", "S607", "S608", "E501"]  # load tool, not shipped code
 "scripts/**" = ["E501", "S101"]  # acceptance helpers
 "engine/src/tracelens/cli.py" = ["E501"]  # table-formatting f-strings
+"engine/src/tracelens/pipeline.py" = ["E501"]  # report-formatting f-strings
 "engine/src/tracelens/loader.py" = ["E501", "S608"]  # SQL literals; the interpolated fragment is a module constant
 "engine/src/tracelens/symbols_pg.py" = ["E501"]  # SQL literals
 "indexer/src/tracelens_indexer/store.py" = ["E501", "S608"]  # long SQL literals; fragments are constants
