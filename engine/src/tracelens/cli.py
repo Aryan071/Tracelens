@@ -108,6 +108,7 @@ def main(argv: list[str] | None = None) -> None:
         "--warmup", type=float, default=5.0, help="seconds of the new version to discard"
     )
     pr.add_argument("--out", default=None, help="write Evidence JSON documents to this directory")
+    pr.add_argument("--summary", default=None, help="write a machine-readable summary JSON here")
     pr.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     until = datetime.now(UTC)
@@ -134,6 +135,10 @@ def main(argv: list[str] | None = None) -> None:
             cfg=DetectionConfig(warmup_s=a.warmup),
         )
         print(pipeline.render(run))
+        if a.summary:
+            _P(a.summary).write_text(
+                json.dumps(pipeline.summary(run), indent=1, default=str) + "\n"
+            )
         if a.out:
             for p in pipeline.write_evidence(run, _P(a.out)):
                 print(f"evidence: {p}")

@@ -211,3 +211,57 @@ def write_evidence(run: RegressionRun, out_dir: Path) -> list[Path]:
         p.write_text(ev.model_dump_json(exclude_none=True, indent=2) + "\n")
         paths.append(p)
     return paths
+
+
+def summary(run: RegressionRun) -> dict[str, object]:
+    """Machine-readable result of a comparison (used by the acceptance checker)."""
+    c = run.analysis.comparison
+    return {
+        "old": run.old,
+        "new": run.new,
+        "same_commit": c.same_commit,
+        "control_shift": c.control_shift,
+        "controls": [f"{s} {m} {r}" for s, m, r in c.controls],
+        "warnings": [*c.warnings, *run.notes],
+        "commits_in_range": None if run.commits is None else len(run.commits),
+        "results": [
+            {
+                "endpoint": f"{r.endpoint[0]} {r.endpoint[1]} {r.endpoint[2]}",
+                "status": r.status,
+                "n_before": r.before.count,
+                "n_after": r.after.count,
+                "p50_before_ms": r.before.p50,
+                "p50_after_ms": r.after.p50,
+                "p50_after_raw_ms": r.raw_after.p50,
+                "p95_before_ms": r.before.p95,
+                "p95_after_ms": r.after.p95,
+                "p_adj": r.p_adj,
+                "notes": r.notes,
+                "symbols": [
+                    {
+                        "key": s.key,
+                        "delta_mean_ms": s.delta_mean_ms,
+                        "flagged": s.flagged,
+                        "share": s.share_of_increase,
+                    }
+                    for s in r.symbols
+                ],
+            }
+            for r in c.results
+        ],
+        "ranked": {
+            f"{ep[0]} {ep[1]} {ep[2]}": [
+                {
+                    "rank": rc.rank,
+                    "sha": rc.change.sha,
+                    "subject": rc.change.subject,
+                    "score": rc.score,
+                    "reasons": rc.reasons,
+                    "ambiguous_with": rc.ambiguous_with,
+                    "symbols": [f"{s.change}:{s.key}" for s in rc.change.symbols],
+                }
+                for rc in ranked
+            ]
+            for ep, ranked in run.analysis.ranked.items()
+        },
+    }

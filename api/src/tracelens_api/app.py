@@ -4,7 +4,8 @@ the VS Code extension needs (the OpenAPI document in api/openapi.json is the con
 from __future__ import annotations
 
 import os
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
+from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Annotated, Any, Protocol
 
@@ -116,10 +117,20 @@ StoreDep = Annotated[Store, Depends(get_store)]
 
 def create_app(store_factory: Callable[[], Store] | None = None) -> FastAPI:
     """Build the app. `store_factory` replaces the PostgreSQL/ClickHouse store (used by tests)."""
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        if store_factory is None:  # the real service owns its schema: create/upgrade it at startup
+            from tracelens_indexer import store as pgstore
+
+            pgstore.migrate(os.environ.get("TRACELENS_PG_DSN", pgstore.DEFAULT_DSN))
+        yield
+
     app = FastAPI(
         title="TraceLens API",
         version="0.1.0",
         description="Deployment tracking (Phase 4); query endpoints arrive in Phase 6.",
+        lifespan=lifespan,
     )
     if store_factory is not None:
         app.dependency_overrides[get_store] = lambda: store_factory()

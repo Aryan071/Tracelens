@@ -13,6 +13,7 @@ select = ["E", "F", "I", "B", "UP", "S"]
 "**/tests/**" = ["S101", "E501", "S608", "S603", "S607", "S311", "S106"]  # asserts, long SQL literals, test-only f-string SQL
 "bench/**" = ["S101", "S106", "S310", "S311", "S603", "S607", "S608", "E501"]  # load tool, not shipped code
 "scripts/**" = ["E501", "S101"]  # acceptance helpers
+"demo/bad-deployments/**" = ["E501", "S603", "S607"]  # source-code string literals; shells out to git
 "engine/src/tracelens/cli.py" = ["E501"]  # table-formatting f-strings
 "engine/src/tracelens/pipeline.py" = ["E501"]  # report-formatting f-strings
 "engine/src/tracelens/loader.py" = ["E501", "S608"]  # SQL literals; the interpolated fragment is a module constant

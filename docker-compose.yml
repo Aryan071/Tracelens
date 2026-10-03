@@ -2,6 +2,7 @@ name: tracelens
 
 x-demo: &demo
   build: { context: ., dockerfile: demo/Dockerfile }
+  image: ${DEMO_IMAGE:-tracelens-demo:dev}   # scripts/deploy_demo.sh deploys any git revision as a version
   depends_on:
     postgres: { condition: service_healthy }
     ingest: { condition: service_healthy }
@@ -64,6 +65,22 @@ services:
     stop_grace_period: 45s  # > SHUTDOWN_TIMEOUT_S so the buffer drains before SIGKILL
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:4318/readyz').status==200 else 1)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: { context: ., dockerfile: api/Dockerfile }
+    depends_on:
+      postgres: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+    environment:
+      TRACELENS_PG_DSN: postgresql://tracelens:tracelens@postgres:5432/tracelens
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_DB: tracelens
+    ports: ["127.0.0.1:8080:8080"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/healthz').status==200 else 1)"]
       interval: 3s
       timeout: 3s
       retries: 20
