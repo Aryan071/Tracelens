@@ -1,0 +1,526 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tracelens.dev/schema/evidence.v1.schema.json",
+  "title": "Evidence",
+  "description": "A TraceLens diagnosis: a list of typed, linked, confidence-scored evidence items. Schema version 1.x is backward compatible within the major version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "generatedAt",
+    "subject",
+    "items"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^1\\.\\d+\\.\\d+$"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "subject": {
+      "$ref": "#/$defs/Subject"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/EvidenceItem"
+      }
+    }
+  },
+  "$defs": {
+    "Subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "service"
+      ],
+      "properties": {
+        "service": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "HTTP method + route, e.g. 'POST /orders'."
+        },
+        "baselineDeployment": {
+          "$ref": "#/$defs/DeploymentRef"
+        },
+        "currentDeployment": {
+          "$ref": "#/$defs/DeploymentRef"
+        }
+      }
+    },
+    "DeploymentRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "commitSha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,40}$"
+        },
+        "deployedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "Links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "traceIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        },
+        "codeLocations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CodeLocation"
+          }
+        },
+        "commitShas": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{7,40}$"
+          }
+        },
+        "queryFingerprints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "relatedEvidenceIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "CodeLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file"
+      ],
+      "properties": {
+        "file": {
+          "type": "string"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "symbol": {
+          "type": "string"
+        }
+      }
+    },
+    "LatencyStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "count",
+        "p50Ms",
+        "p95Ms",
+        "p99Ms"
+      ],
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "p50Ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p95Ms": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p99Ms": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "EvidenceItem": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LatencyRegression"
+        },
+        {
+          "$ref": "#/$defs/SpanAttribution"
+        },
+        {
+          "$ref": "#/$defs/CommitChange"
+        },
+        {
+          "$ref": "#/$defs/SqlChange"
+        },
+        {
+          "$ref": "#/$defs/ErrorGroup"
+        }
+      ]
+    },
+    "LatencyRegression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "confidence",
+        "links",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ev_[a-z0-9_]+$",
+          "description": "Stable, deterministic ID: derived from item type + subject keys, never random."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "links": {
+          "$ref": "#/$defs/Links"
+        },
+        "type": {
+          "const": "latency_regression"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "target",
+            "before",
+            "after",
+            "pValue",
+            "effectSize",
+            "test"
+          ],
+          "properties": {
+            "target": {
+              "type": "string",
+              "description": "Endpoint or symbol the regression applies to."
+            },
+            "before": {
+              "$ref": "#/$defs/LatencyStats"
+            },
+            "after": {
+              "$ref": "#/$defs/LatencyStats"
+            },
+            "p95DeltaPct": {
+              "type": "number"
+            },
+            "test": {
+              "const": "mann_whitney_u"
+            },
+            "pValue": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "effectSize": {
+              "type": "number",
+              "description": "Rank-biserial correlation in [-1, 1]."
+            }
+          }
+        }
+      }
+    },
+    "SpanAttribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "confidence",
+        "links",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ev_[a-z0-9_]+$",
+          "description": "Stable, deterministic ID: derived from item type + subject keys, never random."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "links": {
+          "$ref": "#/$defs/Links"
+        },
+        "type": {
+          "const": "span_attribution"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "symbol",
+            "mappingMethod",
+            "mappingConfidence",
+            "selfTimeBeforeMs",
+            "selfTimeAfterMs",
+            "shareOfIncrease"
+          ],
+          "properties": {
+            "symbol": {
+              "type": "string"
+            },
+            "mappingMethod": {
+              "enum": [
+                "semconv",
+                "route_match",
+                "fuzzy_name"
+              ]
+            },
+            "mappingConfidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "selfTimeBeforeMs": {
+              "type": "number",
+              "minimum": 0
+            },
+            "selfTimeAfterMs": {
+              "type": "number",
+              "minimum": 0
+            },
+            "shareOfIncrease": {
+              "type": "number",
+              "description": "Fraction of the endpoint's latency increase attributed to this symbol."
+            },
+            "onCriticalPath": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "CommitChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "confidence",
+        "links",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ev_[a-z0-9_]+$",
+          "description": "Stable, deterministic ID: derived from item type + subject keys, never random."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "links": {
+          "$ref": "#/$defs/Links"
+        },
+        "type": {
+          "const": "commit_change"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sha",
+            "rank",
+            "score",
+            "changedSymbols",
+            "reasons"
+          ],
+          "properties": {
+            "sha": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{7,40}$"
+            },
+            "subject": {
+              "type": "string"
+            },
+            "author": {
+              "type": "string"
+            },
+            "rank": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "score": {
+              "type": "number",
+              "minimum": 0
+            },
+            "changedSymbols": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "reasons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "SqlChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "confidence",
+        "links",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ev_[a-z0-9_]+$",
+          "description": "Stable, deterministic ID: derived from item type + subject keys, never random."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "links": {
+          "$ref": "#/$defs/Links"
+        },
+        "type": {
+          "const": "sql_change"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fingerprint",
+            "normalizedQuery",
+            "before",
+            "after"
+          ],
+          "properties": {
+            "fingerprint": {
+              "type": "string"
+            },
+            "normalizedQuery": {
+              "type": "string"
+            },
+            "before": {
+              "$ref": "#/$defs/LatencyStats"
+            },
+            "after": {
+              "$ref": "#/$defs/LatencyStats"
+            },
+            "callCountBefore": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Mean calls per request; detects N+1."
+            },
+            "callCountAfter": {
+              "type": "number",
+              "minimum": 0
+            },
+            "explainPlanSummary": {
+              "type": "string",
+              "description": "Present only if EXPLAIN (never ANALYZE) was run on a configured replica."
+            }
+          }
+        }
+      }
+    },
+    "ErrorGroup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "confidence",
+        "links",
+        "data"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^ev_[a-z0-9_]+$",
+          "description": "Stable, deterministic ID: derived from item type + subject keys, never random."
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "links": {
+          "$ref": "#/$defs/Links"
+        },
+        "type": {
+          "const": "error_group"
+        },
+        "data": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fingerprint",
+            "exceptionType",
+            "message",
+            "count",
+            "isNewInDeployment"
+          ],
+          "properties": {
+            "fingerprint": {
+              "type": "string"
+            },
+            "exceptionType": {
+              "type": "string"
+            },
+            "message": {
+              "type": "string"
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "isNewInDeployment": {
+              "type": "boolean"
+            },
+            "topFrame": {
+              "$ref": "#/$defs/CodeLocation"
+            }
+          }
+        }
+      }
+    }
+  }
+}

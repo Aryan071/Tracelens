@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evd_x",
+  "generatedAt": "2026-10-03T12:00:00Z",
+  "subject": { "service": "orders" },
+  "items": [
+    {
+      "id": "ev_commit_x",
+      "type": "commit_change",
+      "confidence": 1.5,
+      "links": {},
+      "data": { "sha": "abc1234", "rank": 1, "score": 1, "changedSymbols": [], "reasons": [] }
+    }
+  ]
+}

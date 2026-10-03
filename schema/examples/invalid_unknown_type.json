@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evd_y",
+  "generatedAt": "2026-10-03T12:00:00Z",
+  "subject": { "service": "orders" },
+  "items": [ { "id": "ev_z", "type": "vibes", "confidence": 0.5, "links": {}, "data": {} } ]
+}

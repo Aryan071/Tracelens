@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "evd_orders_post_orders_v2",
+  "generatedAt": "2026-10-03T12:00:00Z",
+  "subject": {
+    "service": "orders",
+    "endpoint": "POST /orders",
+    "baselineDeployment": { "version": "1.0.0", "commitSha": "a1b2c3d" },
+    "currentDeployment": { "version": "1.1.0", "commitSha": "e4f5a6b" }
+  },
+  "items": [
+    {
+      "id": "ev_latency_orders_post_orders",
+      "type": "latency_regression",
+      "confidence": 0.97,
+      "links": { "traceIds": ["0af7651916cd43dd8448eb211c80319c"] },
+      "data": {
+        "target": "POST /orders",
+        "before": { "count": 500, "p50Ms": 40, "p95Ms": 80, "p99Ms": 120 },
+        "after": { "count": 480, "p50Ms": 70, "p95Ms": 820, "p99Ms": 1100 },
+        "p95DeltaPct": 925,
+        "test": "mann_whitney_u",
+        "pValue": 0.0001,
+        "effectSize": 0.62
+      }
+    },
+    {
+      "id": "ev_commit_e4f5a6b",
+      "type": "commit_change",
+      "confidence": 0.8,
+      "links": { "commitShas": ["e4f5a6b"], "relatedEvidenceIds": ["ev_latency_orders_post_orders"] },
+      "data": {
+        "sha": "e4f5a6b",
+        "rank": 1,
+        "score": 0.91,
+        "changedSymbols": ["orders/repo.ts:findOrdersByUser"],
+        "reasons": ["changes a symbol carrying 88% of the latency increase"]
+      }
+    }
+  ]
+}
