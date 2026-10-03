@@ -60,7 +60,7 @@ def group(
 
 
 def run(
-    groups: dict[EndpointKey, tuple[Sequence[RequestAttribution], Sequence[RequestAttribution]]],
+    groups: Mapping[EndpointKey, tuple[Sequence[RequestAttribution], Sequence[RequestAttribution]]],
     **kw: object,
 ) -> Comparison:
     kw.setdefault("changed_symbols", set())
