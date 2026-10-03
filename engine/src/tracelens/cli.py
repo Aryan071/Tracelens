@@ -112,8 +112,8 @@ def main(argv: list[str] | None = None) -> None:
     pr.add_argument("--json", action="store_true")
     a = ap.parse_args(argv)
     until = datetime.now(UTC)
-    window = a.window if isinstance(a.window, timedelta) else parse_window(a.window)
-    since = until - window
+    raw_window = getattr(a, "window", "15m")  # only endpoints/profile take --window
+    since = until - (raw_window if isinstance(raw_window, timedelta) else parse_window(raw_window))
 
     if a.cmd == "regressions":
         from pathlib import Path as _P

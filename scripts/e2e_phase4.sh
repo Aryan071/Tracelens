@@ -12,6 +12,7 @@ git diff --quiet HEAD -- demo || { echo "commit your demo/ changes first: the sc
 make -s dev-image
 rm -rf .tmp/e2e && mkdir -p .tmp/e2e
 
+if [ "${ANALYZE_ONLY:-0}" != 1 ]; then   # ANALYZE_ONLY=1 reuses the data of a previous run
 echo "== fresh stack"
 docker compose down -v -t 1 >/dev/null 2>&1 || true
 docker compose up -d --build --wait postgres clickhouse ingest api 2>&1 | tail -3
@@ -33,6 +34,8 @@ deploy 1.0.0 base
 deploy 1.1.0 tip1
 deploy 1.1.1 tip1
 deploy 1.2.0 tip2
+fi
+sha() { python3 -c "import json;print(json.load(open('.tmp/e2e/shas.json'))['$1'])"; }
 
 dev() { docker run --rm --network host -u "$(id -u):$(id -g)" -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv \
   -e UV_PROJECT_ENVIRONMENT=/tmp/venv -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=safe.directory \

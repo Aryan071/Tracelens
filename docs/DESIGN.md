@@ -43,6 +43,9 @@ Interfaces for Phase 3 (trace->code mapping): symbols carry repo-relative `path`
 ### Trace analysis engine (implemented in Phase 3)
 `engine/` turns spans into answers: `tree.py` (forest repair, ADR-0014), `timing.py` (self-time and critical path, ADR-0015), `mapping.py` (three-tier trace->code mapping with confidence, ADR-0016), `aggregate.py` (per-endpoint profiles with roll-up of unmapped time), `loader.py` (ClickHouse) and `symbols_pg.py` (loads an indexed commit from the Phase 2 PostgreSQL index into memory). CLI: `python -m tracelens endpoints|profile`. The commit used for mapping is passed explicitly for now (`--repo --rev`); Phase 4 derives it from the deployment (`service.version` -> commit SHA). The demo has a `DEMO_FAULTS` test hook (`service.function:ms`) that makes acceptance deterministic and which Phase 4's scripted bad deployments extend. Measured results: [BENCHMARKS.md](BENCHMARKS.md).
 
+### Deployments, regression detection and commit ranking (implemented in Phase 4)
+`POST /deployments` (the `api/` FastAPI service, OpenAPI committed in `api/openapi.json`) maps `service@version` to a commit SHA; versions seen only in telemetry are discovered and flagged unmapped (ADR-0019). `tracelens regressions --service S --from V1 --to V2` groups requests by `service.version`, drops warmup, and tests each endpoint and its critical-path symbols with a Mann-Whitney U test, Benjamini-Hochberg-corrected over the whole comparison, gated by effect size and by a **control normalization** that divides out the shift experienced by endpoints whose code did not change (ADR-0017). It then compares symbols in every commit between the two SHAs (token-hash based, so formatting and comment edits are not changes) and ranks the commits by overlap with the regressed symbols (ADR-0018). The output is a schema-validated `Evidence` document per regressed endpoint (schema 1.1.0) with deterministic IDs and cross-references an explanation layer can cite. Scripted bad deployments for end-to-end tests live in `demo/bad-deployments/` (ADR-0020).
+
 ### Repository layout
 `/schema /engine /ingest /indexer /api /extension /demo /docs /bench /scripts`. Builds run in Docker (ADR-0001).
 
@@ -76,3 +79,8 @@ Interfaces for Phase 3 (trace->code mapping): symbols carry repo-relative `path`
 18. Critical-path attribution assumes every span's clock is trustworthy within the skew the clamp policy absorbs (sub-millisecond in the demo). Large cross-host skew would misattribute time; there is no skew estimation yet.
 19. Trace-by-id lookup: bloom index kept over a projection (+110% storage for ~4 ms) at 1.08M spans; re-measure at 100x scale (BENCHMARKS.md).
 20. The end-to-end analysis (1,000 requests in ~440 ms) is split between ClickHouse fetch, row conversion and analysis; not yet profiled.
+21. The detector assumes environmental effects are multiplicative and that endpoints with unchanged code are unaffected by the change; a regression in shared code is partly absorbed by controls. Reconsider if real deployments show shared-code regressions being under-reported.
+22. Commits that change the same hot symbol cannot be told apart statically; a bisect-style experiment (deploying individual commits) would, but is out of scope.
+23. Control normalization needs at least one endpoint with unchanged code and a known critical path; services with a single endpoint get an explicit "cannot rule out environment" note.
+24. Requests are compared across time (before vs after); a rollout with both versions live (canary) would allow a concurrent comparison, which is not implemented.
+25. Single repository per comparison (the CLI takes one `--repo`); multi-repo services need per-service repos.
