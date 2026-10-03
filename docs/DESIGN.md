@@ -18,14 +18,14 @@ AI code generation/autocomplete; a custom tracing SDK; auth, multi-tenancy, bill
 ## Design
 ### Data flow
 ```
-demo services --OTLP--> ingest (Go) --batched--> ClickHouse (spans, errors)
-git repos --> indexer (Go + tree-sitter) --> PostgreSQL (symbols, call graph, commits)
+demo services --OTLP--> ingest (Python) --batched--> ClickHouse (spans, errors)
+git repos --> indexer (Python + tree-sitter) --> PostgreSQL (symbols, call graph, commits)
 POST /deployments, service.version --> PostgreSQL (deployments)
-ClickHouse + PostgreSQL --> engine (Go) --> Evidence JSON --> API --> VS Code extension
+ClickHouse + PostgreSQL --> engine (Python) --> Evidence JSON --> API --> VS Code extension
                                                \--> explanation service (LLM, citations validated)
 ```
 ### Evidence contract (implemented in Phase 0)
-`schema/evidence.v1.schema.json` is the single source of truth (ADR-0002). Items are a `oneOf` discriminated by `type`: `latency_regression`, `span_attribution`, `commit_change`, `sql_change`, `error_group`. IDs are deterministic. Go and TS types are generated; CI fails on drift. Compatibility: additive changes bump the minor version; breaking changes require `v2` as a new schema file.
+`schema/evidence.v1.schema.json` is the single source of truth (ADR-0002). Items are a `oneOf` discriminated by `type`: `latency_regression`, `span_attribution`, `commit_change`, `sql_change`, `error_group`. IDs are deterministic. Pydantic (Python) and TypeScript types are generated; CI fails on drift. Compatibility: additive changes bump the minor version; breaking changes require `v2` as a new schema file.
 
 ### Demo app (implemented in Phase 0)
 Three Node/TS services (orders, inventory, payments) over one PostgreSQL (a schema per service), driven by a load generator. Orders `POST /orders` calls inventory `/reserve` and payments `/charge`. Business functions are wrapped by `traced()` which sets `code.function.name` and `code.file.path`. Version is injected via `DEMO_VERSION` → `service.version`. Phase 0 exports spans to stdout; Phase 1 switches to OTLP.
@@ -34,17 +34,17 @@ Three Node/TS services (orders, inventory, payments) over one PostgreSQL (a sche
 `/schema /engine /ingest /indexer /api /extension /demo /docs /bench /scripts`. Builds run in Docker (ADR-0001).
 
 ## Alternatives considered
-- Derive types from Go structs instead of JSON Schema: rejected (ADR-0002).
+- Derive types from hand-written backend structs instead of JSON Schema: rejected (ADR-0002).
 - LLM-first root-cause analysis: rejected; non-deterministic, unverifiable, not usable offline.
 - Sampling-based profiling instead of traces: out of scope; requires an agent and does not link to deployments as directly.
 
 ## Tradeoffs
-- Range/pattern validation in Go is hand-written because the generator only enforces `required` (ADR-0003). Accepted short-term.
+- Python (ADR-0004) trades raw ingestion throughput for development speed and simpler statistics; the Phase 1 benchmark quantifies the cost.
 - Demo uses auto-instrumentation plus a manual `traced()` helper, so `code.*` attributes exist for tier-(a) mapping but tiers (b) and (c) are only exercised by spans lacking them.
 
 ## Open questions
-1. Go JSON Schema validator dependency (ADR-0003 proposal).
+1. Ingestion throughput target for Python (to be set from the Phase 1 benchmark; see ADR-0004 mitigation).
 2. `code.line.number` is not emitted by the demo: compiled-JS lines are wrong without source maps. Resolve in Phase 5 (source-map support) or by emitting TS lines at build time.
-3. ESLint/golangci-lint are not yet configured; CI currently gates on `go vet`, `gofmt` and strict `tsc`.
+3. ESLint is not yet configured; Python is gated by `ruff` and `mypy --strict`; TypeScript only by strict `tsc` (ESLint not yet configured).
 4. The e2e job (deploy a bad version, assert the guilty commit) does not exist yet; it arrives in Phase 4. CI intentionally has no placeholder job that pretends to pass.
 5. ClickHouse and PostgreSQL run in compose but are unused until Phase 1/2.

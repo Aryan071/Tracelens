@@ -246,7 +246,8 @@
               "type": "number",
               "description": "Rank-biserial correlation in [-1, 1]."
             }
-          }
+          },
+          "title": "LatencyRegressionData"
         }
       }
     },
@@ -319,7 +320,8 @@
             "onCriticalPath": {
               "type": "boolean"
             }
-          }
+          },
+          "title": "SpanAttributionData"
         }
       }
     },
@@ -391,7 +393,8 @@
                 "type": "string"
               }
             }
-          }
+          },
+          "title": "CommitChangeData"
         }
       }
     },
@@ -457,7 +460,8 @@
               "type": "string",
               "description": "Present only if EXPLAIN (never ANALYZE) was run on a configured replica."
             }
-          }
+          },
+          "title": "SqlChangeData"
         }
       }
     },
@@ -518,7 +522,8 @@
             "topFrame": {
               "$ref": "#/$defs/CodeLocation"
             }
-          }
+          },
+          "title": "ErrorGroupData"
         }
       }
     }

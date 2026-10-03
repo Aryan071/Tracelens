@@ -25,25 +25,25 @@ useful with the LLM disabled.
 - No UI frameworks beyond what VS Code webviews need
 
 ## Architecture
-1. **Ingestion service** (Go): OTLP/gRPC + OTLP/HTTP receiver for traces.
+1. **Ingestion service** (Python): OTLP/gRPC + OTLP/HTTP receiver for traces.
    Batches writes, applies backpressure, never blocks the receiver on storage.
 2. **Storage**:
    - ClickHouse: spans, errors (columnar, time-partitioned, TTL)
    - PostgreSQL: metadata (repos, symbols, commits, deployments, query fingerprints)
-3. **Code indexer** (Go + tree-sitter): parses repos (TypeScript/JavaScript
+3. **Code indexer** (Python + tree-sitter): parses repos (TypeScript/JavaScript
    first, Python/Go later), extracts symbols (functions, methods, classes,
    route handlers, SQL string literals), builds a call graph, and supports
    incremental re-indexing per commit.
 4. **Git & deployment correlator**: reads git history; deployments come from
    the `service.version` resource attribute and/or a `POST /deployments` API
    (version → commit SHA).
-5. **Correlation engine** (Go): trace→code mapping, critical path analysis,
+5. **Correlation engine** (Python): trace→code mapping, critical path analysis,
    regression detection, commit ranking, SQL correlation, error→code mapping.
    Outputs an `Evidence` document.
 6. **Explanation service**: sends ONLY the Evidence JSON to an LLM. The LLM must
    cite evidence IDs for every claim; responses with uncited or invalid citations
    are rejected and retried once, then fall back to a template explanation.
-7. **Query API** (Go, REST + OpenAPI spec): serves the extension.
+7. **Query API** (Python, REST + OpenAPI spec): serves the extension.
 8. **VS Code extension** (TypeScript): tree view of endpoints/regressions,
    webview with trace waterfall + evidence panel, CodeLens annotations
    ("p95 820ms ↑64% since v2.18.4") on functions, click-through
@@ -87,7 +87,7 @@ Every diagnosis is an `Evidence` document: a list of typed evidence items,
 each with a stable ID, type (latency_regression, span_attribution,
 commit_change, sql_change, error_group, ...), the raw numbers, links (trace
 IDs, file:line, commit SHA, query fingerprint), and confidence. Define this
-schema first, version it, and share it between Go and TypeScript via
+schema first, version it, and share it between Python and TypeScript via
 JSON Schema code generation.
 
 ## Engineering standards

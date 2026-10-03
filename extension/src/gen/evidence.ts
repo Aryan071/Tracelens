@@ -39,21 +39,7 @@ export interface LatencyRegression {
   confidence: number;
   links: Links;
   type: "latency_regression";
-  data: {
-    /**
-     * Endpoint or symbol the regression applies to.
-     */
-    target: string;
-    before: LatencyStats;
-    after: LatencyStats;
-    p95DeltaPct?: number;
-    test: "mann_whitney_u";
-    pValue: number;
-    /**
-     * Rank-biserial correlation in [-1, 1].
-     */
-    effectSize: number;
-  };
+  data: LatencyRegressionData;
 }
 export interface Links {
   traceIds?: string[];
@@ -66,6 +52,21 @@ export interface CodeLocation {
   file: string;
   line?: number;
   symbol?: string;
+}
+export interface LatencyRegressionData {
+  /**
+   * Endpoint or symbol the regression applies to.
+   */
+  target: string;
+  before: LatencyStats;
+  after: LatencyStats;
+  p95DeltaPct?: number;
+  test: "mann_whitney_u";
+  pValue: number;
+  /**
+   * Rank-biserial correlation in [-1, 1].
+   */
+  effectSize: number;
 }
 export interface LatencyStats {
   count: number;
@@ -81,18 +82,19 @@ export interface SpanAttribution {
   confidence: number;
   links: Links;
   type: "span_attribution";
-  data: {
-    symbol: string;
-    mappingMethod: "semconv" | "route_match" | "fuzzy_name";
-    mappingConfidence: number;
-    selfTimeBeforeMs: number;
-    selfTimeAfterMs: number;
-    /**
-     * Fraction of the endpoint's latency increase attributed to this symbol.
-     */
-    shareOfIncrease: number;
-    onCriticalPath?: boolean;
-  };
+  data: SpanAttributionData;
+}
+export interface SpanAttributionData {
+  symbol: string;
+  mappingMethod: "semconv" | "route_match" | "fuzzy_name";
+  mappingConfidence: number;
+  selfTimeBeforeMs: number;
+  selfTimeAfterMs: number;
+  /**
+   * Fraction of the endpoint's latency increase attributed to this symbol.
+   */
+  shareOfIncrease: number;
+  onCriticalPath?: boolean;
 }
 export interface CommitChange {
   /**
@@ -102,15 +104,16 @@ export interface CommitChange {
   confidence: number;
   links: Links;
   type: "commit_change";
-  data: {
-    sha: string;
-    subject?: string;
-    author?: string;
-    rank: number;
-    score: number;
-    changedSymbols: string[];
-    reasons: string[];
-  };
+  data: CommitChangeData;
+}
+export interface CommitChangeData {
+  sha: string;
+  subject?: string;
+  author?: string;
+  rank: number;
+  score: number;
+  changedSymbols: string[];
+  reasons: string[];
 }
 export interface SqlChange {
   /**
@@ -120,21 +123,22 @@ export interface SqlChange {
   confidence: number;
   links: Links;
   type: "sql_change";
-  data: {
-    fingerprint: string;
-    normalizedQuery: string;
-    before: LatencyStats;
-    after: LatencyStats;
-    /**
-     * Mean calls per request; detects N+1.
-     */
-    callCountBefore?: number;
-    callCountAfter?: number;
-    /**
-     * Present only if EXPLAIN (never ANALYZE) was run on a configured replica.
-     */
-    explainPlanSummary?: string;
-  };
+  data: SqlChangeData;
+}
+export interface SqlChangeData {
+  fingerprint: string;
+  normalizedQuery: string;
+  before: LatencyStats;
+  after: LatencyStats;
+  /**
+   * Mean calls per request; detects N+1.
+   */
+  callCountBefore?: number;
+  callCountAfter?: number;
+  /**
+   * Present only if EXPLAIN (never ANALYZE) was run on a configured replica.
+   */
+  explainPlanSummary?: string;
 }
 export interface ErrorGroup {
   /**
@@ -144,12 +148,13 @@ export interface ErrorGroup {
   confidence: number;
   links: Links;
   type: "error_group";
-  data: {
-    fingerprint: string;
-    exceptionType: string;
-    message: string;
-    count: number;
-    isNewInDeployment: boolean;
-    topFrame?: CodeLocation;
-  };
+  data: ErrorGroupData;
+}
+export interface ErrorGroupData {
+  fingerprint: string;
+  exceptionType: string;
+  message: string;
+  count: number;
+  isNewInDeployment: boolean;
+  topFrame?: CodeLocation;
 }
