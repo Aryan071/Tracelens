@@ -13,8 +13,9 @@ from clickhouse_connect.driver.client import Client
 
 from tracelens.spans import Span
 
+# FixedString columns come back from clickhouse-connect as bytes: always select toString(...).
 _COLUMNS = (
-    "trace_id, span_id, parent_span_id, service, name, toString(kind), "
+    "toString(trace_id), toString(span_id), toString(parent_span_id), service, name, toString(kind), "
     "toUnixTimestamp64Nano(start_time),"
     " toUnixTimestamp64Nano(start_time) + toInt64(duration_ns), "
     "toString(status_code), code_function, code_filepath, code_lineno, http_route, http_method, db_system"
@@ -93,7 +94,8 @@ def fetch_server_spans(
 ) -> list[tuple[str, str]]:
     """(trace_id, span_id) of the most recent matching SERVER spans in the window."""
     rows = client.query(
-        "SELECT trace_id, span_id FROM spans WHERE kind = 'SERVER' AND service = {service:String}"
+        "SELECT toString(trace_id), toString(span_id) FROM spans WHERE kind = 'SERVER'"
+        " AND service = {service:String}"
         " AND http_method = {method:String} AND http_route = {route:String}"
         " AND start_time >= {since:DateTime64(9)} AND start_time < {until:DateTime64(9)}"
         " ORDER BY start_time DESC LIMIT {limit:UInt32}",
