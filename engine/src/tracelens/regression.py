@@ -90,6 +90,10 @@ class SymbolShift:
     method: str = ""
     confidence: float = 0.0
     via: list[tuple[str, float]] = field(default_factory=list)
+    self_before_ms: float = (
+        0.0  # rolled-up self time (own time + unmapped children), mean per request
+    )
+    self_after_ms: float = 0.0
 
 
 @dataclass(slots=True)
@@ -110,6 +114,7 @@ class EndpointResult:
     symbols: list[SymbolShift] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     downstream_changed: dict[str, tuple[list[str], list[str]]] = field(default_factory=dict)
+    example_trace_ids: list[str] = field(default_factory=list)  # slowest after-requests
 
 
 @dataclass(slots=True)
@@ -398,15 +403,17 @@ def _classify(
         r95,
         a50,
         a95,
-        _symbol_shifts(pair[1], sym_series, shift, cfg),
+        _symbol_shifts(pair, sym_series, shift, cfg),
         notes,
         down,
+        [r.trace_id for r in sorted(pair[1], key=lambda r: -r.duration_ns)[:3] if r.trace_id],
     )
 
 
 def _symbol_shifts(
-    new: Group, sym_series: list[_Series], shift: float, cfg: DetectionConfig
+    pair: tuple[Group, Group], sym_series: list[_Series], shift: float, cfg: DetectionConfig
 ) -> list[SymbolShift]:
+    old, new = pair
     meta: dict[str, tuple[SymbolRef, str, float]] = {}
     via: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for r in new:
@@ -436,6 +443,8 @@ def _symbol_shifts(
                 and delta >= cfg.min_abs_delta_ms,
                 method=m[1] if m else "",
                 confidence=m[2] if m else 0.0,
+                self_before_ms=sum(r.self_ns.get(k, 0) for r in old) / len(old) / MS,
+                self_after_ms=sum(r.self_ns.get(k, 0) for r in new) / len(new) / MS / shift,
                 via=sorted(
                     ((n, v / len(new) / MS / shift) for n, v in via[k].items()), key=lambda x: -x[1]
                 )[:3],

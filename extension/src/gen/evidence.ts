@@ -62,11 +62,33 @@ export interface LatencyRegressionData {
   after: LatencyStats;
   p95DeltaPct?: number;
   test: "mann_whitney_u";
+  /**
+   * Benjamini-Hochberg adjusted p-value (one-sided: after is slower).
+   */
   pValue: number;
   /**
    * Rank-biserial correlation in [-1, 1].
    */
   effectSize: number;
+  /**
+   * Adjusted p-value without control normalization.
+   */
+  rawPValue?: number;
+  /**
+   * P(random after-request is slower than a random before-request).
+   */
+  commonLanguageEffect?: number;
+  controlNormalization?: {
+    /**
+     * Multiplicative environment factor divided out of the after samples (1 = none).
+     */
+    shiftFactor: number;
+    /**
+     * Endpoints with unchanged code used to estimate the factor.
+     */
+    controls: string[];
+  };
+  notes?: string[];
 }
 export interface LatencyStats {
   count: number;
@@ -86,7 +108,7 @@ export interface SpanAttribution {
 }
 export interface SpanAttributionData {
   symbol: string;
-  mappingMethod: "semconv" | "route_match" | "fuzzy_name";
+  mappingMethod: "semconv" | "route_match" | "route_name" | "fuzzy_name";
   mappingConfidence: number;
   selfTimeBeforeMs: number;
   selfTimeAfterMs: number;
@@ -95,6 +117,14 @@ export interface SpanAttributionData {
    */
   shareOfIncrease: number;
   onCriticalPath?: boolean;
+  /**
+   * Mean critical-path time charged to the symbol per request, before.
+   */
+  criticalTimeBeforeMs?: number;
+  /**
+   * Same, after (control-normalized when controlNormalization is present on the regression).
+   */
+  criticalTimeAfterMs?: number;
 }
 export interface CommitChange {
   /**
@@ -114,6 +144,15 @@ export interface CommitChangeData {
   score: number;
   changedSymbols: string[];
   reasons: string[];
+  committedAt?: string;
+  /**
+   * Other commits with an indistinguishable score (they changed the same hot symbols).
+   */
+  ambiguousWith?: string[];
+  /**
+   * Changed non-source files that could not be tied to symbols.
+   */
+  otherFiles?: string[];
 }
 export interface SqlChange {
   /**

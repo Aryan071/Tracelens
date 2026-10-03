@@ -240,11 +240,52 @@
             "pValue": {
               "type": "number",
               "minimum": 0,
-              "maximum": 1
+              "maximum": 1,
+              "description": "Benjamini-Hochberg adjusted p-value (one-sided: after is slower)."
             },
             "effectSize": {
               "type": "number",
               "description": "Rank-biserial correlation in [-1, 1]."
+            },
+            "rawPValue": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Adjusted p-value without control normalization."
+            },
+            "commonLanguageEffect": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "P(random after-request is slower than a random before-request)."
+            },
+            "controlNormalization": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "shiftFactor",
+                "controls"
+              ],
+              "properties": {
+                "shiftFactor": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Multiplicative environment factor divided out of the after samples (1 = none)."
+                },
+                "controls": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Endpoints with unchanged code used to estimate the factor."
+                }
+              }
+            },
+            "notes": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           "title": "LatencyRegressionData"
@@ -297,6 +338,7 @@
               "enum": [
                 "semconv",
                 "route_match",
+                "route_name",
                 "fuzzy_name"
               ]
             },
@@ -319,6 +361,16 @@
             },
             "onCriticalPath": {
               "type": "boolean"
+            },
+            "criticalTimeBeforeMs": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Mean critical-path time charged to the symbol per request, before."
+            },
+            "criticalTimeAfterMs": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Same, after (control-normalized when controlNormalization is present on the regression)."
             }
           },
           "title": "SpanAttributionData"
@@ -392,6 +444,25 @@
               "items": {
                 "type": "string"
               }
+            },
+            "committedAt": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "ambiguousWith": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{7,40}$"
+              },
+              "description": "Other commits with an indistinguishable score (they changed the same hot symbols)."
+            },
+            "otherFiles": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Changed non-source files that could not be tied to symbols."
             }
           },
           "title": "CommitChangeData"
@@ -527,5 +598,6 @@
         }
       }
     }
-  }
+  },
+  "$comment": "Evidence schema 1.1.0. 1.1.0 is additive to 1.0.0: mappingMethod gains 'route_name'; optional fields were added to latency_regression, span_attribution and commit_change. Every 1.0.0 document remains valid."
 }

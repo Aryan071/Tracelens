@@ -11,7 +11,7 @@ dev-image:
 	@docker image inspect $(UV_IMG) >/dev/null 2>&1 || docker build -q -t $(UV_IMG) -f tools/dev.Dockerfile tools >/dev/null
 
 # Run a command inside the pinned uv/Python image (see ADR-0001, ADR-0004).
-UV = docker run --rm -u $(UID_GID) -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
+UV = docker run --rm -u $(UID_GID) -e UPDATE_GOLDEN -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
      -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen --all-packages
 
 gen-py: dev-image

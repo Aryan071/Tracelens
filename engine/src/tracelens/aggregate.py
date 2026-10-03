@@ -107,6 +107,7 @@ class RequestAttribution:
     async_tail_ns: int
     issues: Counter[str]
     versions: dict[str, set[str]]  # service -> versions of the services touched by this request
+    trace_id: str = ""
 
 
 def attribute_request(
@@ -150,6 +151,7 @@ def attribute_request(
         async_tail_ns=timing.async_tail_ns,
         issues=Counter(rq.forest.issues),
         versions=dict(versions),
+        trace_id=rq.root.span.trace_id,
     )
 
 

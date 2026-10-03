@@ -43,6 +43,22 @@ class LatencyStats(BaseModel):
     p99Ms: Annotated[float, Field(ge=0.0)]
 
 
+class ControlNormalization(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    shiftFactor: Annotated[
+        float,
+        Field(
+            description="Multiplicative environment factor divided out of the after samples (1 = none).",
+            gt=0.0,
+        ),
+    ]
+    controls: Annotated[
+        list[str], Field(description="Endpoints with unchanged code used to estimate the factor.")
+    ]
+
+
 class LatencyRegressionData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -52,13 +68,35 @@ class LatencyRegressionData(BaseModel):
     after: LatencyStats
     p95DeltaPct: float | None = None
     test: Literal["mann_whitney_u"]
-    pValue: Annotated[float, Field(ge=0.0, le=1.0)]
+    pValue: Annotated[
+        float,
+        Field(
+            description="Benjamini-Hochberg adjusted p-value (one-sided: after is slower).",
+            ge=0.0,
+            le=1.0,
+        ),
+    ]
     effectSize: Annotated[float, Field(description="Rank-biserial correlation in [-1, 1].")]
+    rawPValue: Annotated[
+        float | None,
+        Field(description="Adjusted p-value without control normalization.", ge=0.0, le=1.0),
+    ] = None
+    commonLanguageEffect: Annotated[
+        float | None,
+        Field(
+            description="P(random after-request is slower than a random before-request).",
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+    controlNormalization: ControlNormalization | None = None
+    notes: list[str] | None = None
 
 
 class MappingMethod(Enum):
     semconv = "semconv"
     route_match = "route_match"
+    route_name = "route_name"
     fuzzy_name = "fuzzy_name"
 
 
@@ -76,6 +114,23 @@ class SpanAttributionData(BaseModel):
         Field(description="Fraction of the endpoint's latency increase attributed to this symbol."),
     ]
     onCriticalPath: bool | None = None
+    criticalTimeBeforeMs: Annotated[
+        float | None,
+        Field(
+            description="Mean critical-path time charged to the symbol per request, before.", ge=0.0
+        ),
+    ] = None
+    criticalTimeAfterMs: Annotated[
+        float | None,
+        Field(
+            description="Same, after (control-normalized when controlNormalization is present on the regression).",
+            ge=0.0,
+        ),
+    ] = None
+
+
+class AmbiguousWithItem(RootModel[str]):
+    root: Annotated[str, Field(pattern="^[0-9a-f]{7,40}$")]
 
 
 class CommitChangeData(BaseModel):
@@ -89,6 +144,17 @@ class CommitChangeData(BaseModel):
     score: Annotated[float, Field(ge=0.0)]
     changedSymbols: list[str]
     reasons: list[str]
+    committedAt: AwareDatetime | None = None
+    ambiguousWith: Annotated[
+        list[AmbiguousWithItem] | None,
+        Field(
+            description="Other commits with an indistinguishable score (they changed the same hot symbols)."
+        ),
+    ] = None
+    otherFiles: Annotated[
+        list[str] | None,
+        Field(description="Changed non-source files that could not be tied to symbols."),
+    ] = None
 
 
 class SqlChangeData(BaseModel):

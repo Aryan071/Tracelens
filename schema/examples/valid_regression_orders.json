@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-10-03T12:00:00Z",
+  "id": "evd_orders_post_orders_1_0_0_to_1_1_0",
+  "items": [
+    {
+      "confidence": 1.0,
+      "data": {
+        "after": {
+          "count": 150,
+          "p50Ms": 47.896,
+          "p95Ms": 55.195,
+          "p99Ms": 59.779
+        },
+        "before": {
+          "count": 150,
+          "p50Ms": 16.896,
+          "p95Ms": 25.11,
+          "p99Ms": 29.644
+        },
+        "commonLanguageEffect": 1.0,
+        "controlNormalization": {
+          "controls": [
+            "POST /reserve",
+            "POST /charge",
+            "GET /users/:userId/orders"
+          ],
+          "shiftFactor": 0.9936
+        },
+        "effectSize": 1.0,
+        "notes": [
+          "range changes non-source files (SQL/config) that cannot be tied to symbols",
+          "raw (not control-normalized) after-deploy p50 47.59 ms vs before 16.90 ms"
+        ],
+        "p95DeltaPct": 119.81,
+        "pValue": 2.15886e-50,
+        "rawPValue": 2.15886e-50,
+        "target": "POST /orders",
+        "test": "mann_whitney_u"
+      },
+      "id": "ev_latency_orders_post_orders",
+      "links": {
+        "codeLocations": [
+          {
+            "file": "src/orders.ts",
+            "line": 30,
+            "symbol": "createOrder"
+          }
+        ],
+        "commitShas": [
+          "222222222222"
+        ],
+        "relatedEvidenceIds": [
+          "ev_attr_orders_post_orders_1",
+          "ev_commit_2222222_orders_post_orders"
+        ],
+        "traceIds": [
+          "00000000000000000000000000028e94",
+          "000000000000000000000000000288a0",
+          "00000000000000000000000000027cb8"
+        ]
+      },
+      "type": "latency_regression"
+    },
+    {
+      "confidence": 0.99,
+      "data": {
+        "criticalTimeAfterMs": 38.482,
+        "criticalTimeBeforeMs": 13.94,
+        "mappingConfidence": 0.99,
+        "mappingMethod": "semconv",
+        "onCriticalPath": true,
+        "selfTimeAfterMs": 34.634,
+        "selfTimeBeforeMs": 12.546,
+        "shareOfIncrease": 1.0,
+        "symbol": "src/orders.ts:createOrder"
+      },
+      "id": "ev_attr_orders_post_orders_1",
+      "links": {
+        "codeLocations": [
+          {
+            "file": "src/orders.ts",
+            "line": 30,
+            "symbol": "createOrder"
+          }
+        ],
+        "relatedEvidenceIds": [
+          "ev_latency_orders_post_orders"
+        ]
+      },
+      "type": "span_attribution"
+    },
+    {
+      "confidence": 0.95,
+      "data": {
+        "author": "Ada Lovelace",
+        "changedSymbols": [
+          "src/orders.ts:createOrder"
+        ],
+        "committedAt": "2026-10-02T09:30:00Z",
+        "rank": 1,
+        "reasons": [
+          "modified src/orders.ts:createOrder, which accounts for 100% of the latency increase"
+        ],
+        "score": 1.0,
+        "sha": "222222222222",
+        "subject": "hash order payloads synchronously"
+      },
+      "id": "ev_commit_2222222_orders_post_orders",
+      "links": {
+        "codeLocations": [
+          {
+            "file": "src/orders.ts",
+            "line": 30,
+            "symbol": "createOrder"
+          }
+        ],
+        "commitShas": [
+          "222222222222"
+        ],
+        "relatedEvidenceIds": [
+          "ev_attr_orders_post_orders_1"
+        ]
+      },
+      "type": "commit_change"
+    }
+  ],
+  "schemaVersion": "1.1.0",
+  "subject": {
+    "baselineDeployment": {
+      "commitSha": "aaaaaaaaaaaa",
+      "deployedAt": "2026-10-01T08:00:00Z",
+      "version": "1.0.0"
+    },
+    "currentDeployment": {
+      "commitSha": "bbbbbbbbbbbb",
+      "deployedAt": "2026-10-02T08:00:00Z",
+      "version": "1.1.0"
+    },
+    "endpoint": "POST /orders",
+    "service": "orders"
+  }
+}
