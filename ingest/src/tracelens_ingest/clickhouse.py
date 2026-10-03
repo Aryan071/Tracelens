@@ -18,7 +18,8 @@ from tracelens_ingest.convert import COLUMNS
 
 log = logging.getLogger(__name__)
 MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "migrations"
-_TTL_RE = re.compile(r"INTERVAL (\d+) DAY")
+# ClickHouse normalizes `INTERVAL 30 DAY` to `toIntervalDay(30)` in SHOW CREATE output.
+_TTL_RE = re.compile(r"(?:INTERVAL (\d+) DAY|toIntervalDay\((\d+)\))")
 
 
 def connect(cfg: Config, database: str | None = None) -> Client:
@@ -68,10 +69,11 @@ def migrate(cfg: Config, wait_s: float = 60.0) -> None:
         parameters={"db": cfg.clickhouse_database},
     ).result_rows[0][0]
     m = _TTL_RE.search(ddl)
-    if m and int(m.group(1)) != cfg.retention_days:
+    current = int(m.group(1) or m.group(2)) if m else None
+    if current is not None and current != cfg.retention_days:
         log.info(
             "updating retention",
-            extra={"from_days": int(m.group(1)), "to_days": cfg.retention_days},
+            extra={"from_days": current, "to_days": cfg.retention_days},
         )
         c.command(
             f"ALTER TABLE spans MODIFY TTL toDateTime(start_time) "

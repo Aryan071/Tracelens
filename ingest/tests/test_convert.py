@@ -4,7 +4,7 @@ from opentelemetry.proto.common.v1.common_pb2 import AnyValue, ArrayValue, KeyVa
 from opentelemetry.proto.trace.v1.trace_pb2 import Span, Status
 from tracelens_ingest.convert import COLUMNS, any_value_to_str, spans_to_rows
 
-from .helpers import kv, make_request, make_span
+from .helpers import BASE_NS, kv, make_request, make_span
 
 
 def row_dict(row: tuple) -> dict:  # type: ignore[type-arg]
@@ -19,7 +19,7 @@ def test_basic_span_fields() -> None:
     assert r["trace_id"] == "00" * 15 + "07" and len(r["trace_id"]) == 32
     assert r["span_id"] == "00" * 7 + "07" and len(r["span_id"]) == 16
     assert r["parent_span_id"] == ""
-    assert r["start_time"] == 1_700_000_000_123_456_789  # nanosecond precision preserved
+    assert r["start_time"] == BASE_NS  # nanosecond precision preserved
     assert r["duration_ns"] == 100_000_000
     assert (r["service"], r["service_version"], r["name"]) == ("orders", "1.2.3", "span-7")
     assert (r["kind"], r["status_code"]) == ("SERVER", "UNSET")
@@ -68,11 +68,11 @@ def test_all_attribute_value_types() -> None:
 
 def test_events_become_parallel_arrays() -> None:
     sp = make_span(4)
-    ev = sp.events.add(time_unix_nano=1_700_000_000_150_000_001, name="exception")
+    ev = sp.events.add(time_unix_nano=BASE_NS + 26_543_212, name="exception")
     ev.attributes.append(kv("exception.stacktrace", string_value="at f (a.ts:1:1)"))
-    sp.events.add(time_unix_nano=1_700_000_000_160_000_000, name="retry")
+    sp.events.add(time_unix_nano=BASE_NS + 36_543_211, name="retry")
     r = row_dict(spans_to_rows(make_request([sp]))[0][0])
-    assert r["events.ts"] == [1_700_000_000_150_000_001, 1_700_000_000_160_000_000]
+    assert r["events.ts"] == [BASE_NS + 26_543_212, BASE_NS + 36_543_211]
     assert r["events.name"] == ["exception", "retry"]
     assert r["events.attributes"] == [{"exception.stacktrace": "at f (a.ts:1:1)"}, {}]
 

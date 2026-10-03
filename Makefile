@@ -4,7 +4,7 @@ UV_IMG  := ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 NODE_IMG := node:20-alpine
 J2TS_VERSION := 15.0.2
 
-.PHONY: gen gen-py gen-ts gen-check fmt lint test-py
+.PHONY: gen gen-py gen-ts gen-check fmt lint test-py test-integration
 gen: gen-py gen-ts
 
 # Run a command inside the pinned uv/Python image (see ADR-0001, ADR-0004).
@@ -24,6 +24,10 @@ lint:
 	$(UV) ruff check . && $(UV) ruff format --check . && $(UV) mypy engine/src engine/tests ingest/src ingest/tests
 
 UVP = $(UV)
+test-integration:  # needs `docker compose up -d clickhouse` (port 8123 on localhost)
+	docker run --rm --network host -u $(UID_GID) -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
+	  -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen --all-packages pytest ingest -m integration
+
 test-py:
 	$(UV) pytest engine ingest -m "not integration"
 

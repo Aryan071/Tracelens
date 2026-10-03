@@ -10,7 +10,7 @@ extend-exclude = ["engine/src/tracelens/evidence/models.py"]  # generated
 select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.ruff.lint.per-file-ignores]
-"**/tests/**" = ["S101"]
+"**/tests/**" = ["S101", "E501", "S608"]  # asserts, long SQL literals, test-only f-string SQL
 
 [tool.mypy]
 explicit_package_bases = true
@@ -34,6 +34,6 @@ module = ["grpc", "grpc.*", "google.protobuf.*"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["tracelens_ingest.servers"]
+module = ["tracelens_ingest.servers", "tests.test_integration", "ingest.tests.test_integration"]
 disallow_untyped_calls = false
 disallow_subclassing_any = false
