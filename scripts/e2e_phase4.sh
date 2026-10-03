@@ -35,6 +35,7 @@ deploy 1.0.0 base
 deploy 1.1.0 tip1
 deploy 1.1.1 tip1
 deploy 1.2.0 tip2
+docker compose stop loadgen >/dev/null 2>&1   # fixed sampling windows: no traffic while analyzing
 fi
 sha() { python3 -c "import json;print(json.load(open('.tmp/e2e/shas.json'))['$1'])"; }
 
@@ -49,6 +50,7 @@ done
 
 echo "== analyze"
 reg() { # n service from to
+  rm -rf ".tmp/e2e/evidence$1" ".tmp/e2e/pair$1.json"   # never read results of an earlier run
   dev python -m tracelens regressions --service "$2" --from "$3" --to "$4" --repo /w/.tmp/e2e/repo \
       --repo-name e2e-demo --scope demo --summary ".tmp/e2e/pair$1.json" --out ".tmp/e2e/evidence$1" \
       | tee ".tmp/e2e/report$1.txt" | sed 's/^/   /' || true   # exit code 2 = regression found
