@@ -48,9 +48,13 @@ def main() -> int:
     top = cs[0]
     sym = top["symbol"]
     if not sym or sym["qualified_name"] != a.expect_top:
-        fails.append(f"top contributor is {sym and sym['qualified_name']!r}, expected {a.expect_top!r}")
+        fails.append(
+            f"top contributor is {sym and sym['qualified_name']!r}, expected {a.expect_top!r}"
+        )
     elif not a.min_ms <= top["critical_ms_mean"] <= a.max_ms:
-        fails.append(f"top contributor critical time {top['critical_ms_mean']:.1f} ms outside [{a.min_ms}, {a.max_ms}]")
+        fails.append(
+            f"top contributor critical time {top['critical_ms_mean']:.1f} ms outside [{a.min_ms}, {a.max_ms}]"
+        )
 
     for c in cs:
         s = c["symbol"]
@@ -62,11 +66,15 @@ def main() -> int:
         if want is None:
             fails.append(f"could not find {s['qualified_name']} in {s['path']}")
         elif want != s["start_line"]:
-            fails.append(f"{s['qualified_name']}: reported {s['path']}:{s['start_line']}, defined at line {want}")
+            fails.append(
+                f"{s['qualified_name']}: reported {s['path']}:{s['start_line']}, defined at line {want}"
+            )
 
     total = sum(c["critical_ms_mean"] for c in cs)
     if abs(total - p["latency_ms"]["mean"]) > 0.01 * p["latency_ms"]["mean"]:
-        fails.append(f"contributors sum to {total:.2f} ms but mean latency is {p['latency_ms']['mean']:.2f} ms")
+        fails.append(
+            f"contributors sum to {total:.2f} ms but mean latency is {p['latency_ms']['mean']:.2f} ms"
+        )
     if p["requests"] < 30:
         fails.append(f"only {p['requests']} requests analyzed")
 

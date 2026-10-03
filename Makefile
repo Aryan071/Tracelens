@@ -28,7 +28,7 @@ lint: dev-image
 
 test-integration: dev-image  # needs `docker compose up -d clickhouse` (port 8123 on localhost)
 	docker run --rm --network host -u $(UID_GID) -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
-	  -e UPDATE_GOLDEN -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen --all-packages pytest ingest indexer -m integration
+	  -e UPDATE_GOLDEN -v $(CURDIR):/w -w /w $(UV_IMG) uv run --frozen --all-packages pytest engine ingest indexer -m integration
 
 test-py: dev-image
 	$(UV) pytest engine ingest indexer -m "not integration"

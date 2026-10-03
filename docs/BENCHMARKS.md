@@ -225,3 +225,60 @@ Limits of this evaluation: one codebase (a class-heavy TypeScript ORM), library 
 declaration-line containment and name. It says nothing yet about JavaScript-heavy or functional-style
 code, nor about route extraction on a large Express/Fastify application (typeorm has none; route
 correctness is covered by the fixture-based tests and the demo app).
+
+---
+
+# Phase 3: trace analysis engine
+
+Same hardware and caveats as above. Raw output: `bench/results/engine-bench.json`; reproduce with
+`docker compose up -d clickhouse` then `uv run python bench/engine_bench.py` (via the dev image).
+
+## Workload
+40,000 synthetic traces = **1,080,000 spans** (27 spans per trace, shaped like the demo's real traces:
+3 services, nested CLIENT/SERVER hops, children that outlive their parents by sub-millisecond skew),
+spread over 90 minutes. Compressed on disk: 22.6 MB (21 bytes per span, with the Phase 1 table design).
+
+## Analysis throughput (pure computation, no I/O)
+Per 1,000 traces (27,000 spans): build forest + map every span to code + self-time + critical path +
+aggregate to an endpoint profile.
+
+| Code index | build forest | map + timing + aggregate | Total per 1,000 traces | Spans/s |
+|---|---|---|---|---|
+| demo (5 symbols) | 31 ms | 132 ms | **164 ms** | ~165k |
+| typeorm-sized (6,000 symbols) | 50 ms | 134 ms | **184 ms** | ~147k |
+
+(Two runs differ by about 5%: 164-170 ms and 184-206 ms.) A larger index does not slow mapping
+noticeably because fuzzy name matching goes through an inverted token index.
+
+## ClickHouse access (1.08M spans, single node)
+
+| Operation | p50 | p95 |
+|---|---|---|
+| List the 1,000 most recent SERVER spans of one endpoint (window 100 min) | 9.0 ms | 11.2 ms |
+| Fetch all spans of 500 traces (13,500 spans) | 86.7 ms | 140.1 ms |
+| **End to end: analyze 1,000 requests** (fetch + analyze + profile) | **438 ms** | 471 ms |
+
+The end-to-end figure is about 40% ClickHouse fetch and 40% analysis; the rest is converting rows to
+`Span` objects. Not yet profiled or optimized.
+
+## Single-trace lookup: bloom-filter skip index vs trace-ordered projection (ADR-0005 follow-up)
+200 random trace ids, same data:
+
+| Strategy | p50 | p95 | Storage |
+|---|---|---|---|
+| Bloom skip index on `trace_id` (current), time-bounded | 8.7 ms | 11.0 ms | baseline (22.6 MB) |
+| Bloom skip index, unbounded | 7.7 ms | 9.6 ms | baseline |
+| Projection `ORDER BY trace_id` (planner confirmed to use it) | **4.6 ms** | 6.2 ms | **+24.8 MB (+110%)** |
+
+Decision: keep the bloom-filter index. Both are far below interactive latency, and the projection
+roughly doubles storage for a ~4 ms gain. Limits: one machine, a 22 MB table that fits in memory (139
+granules); the comparison should be repeated at 100x this size before it is treated as settled.
+
+## Correctness checks that are not benchmarks
+- Property tests on 3,000 random traces (shuffled input, async/skewed/detached/zero-length spans):
+  critical-path slices exactly partition the root interval; critical times sum to the root duration;
+  `0 <= self time <= duration`; output is independent of input order.
+- On the live demo, contributors sum to 69.97 ms against a measured mean latency of 70.0 ms.
+- Moving an injected delay across three functions moved the top-ranked contributor each time, at the
+  right `file:line` (`scripts/phase3_acceptance.sh`): `chargeCard` 53.5 ms (+50 injected),
+  `insertOrder` 43.2 ms (+40), `reserveStock` 67.2 ms (+60, which includes its ~7 ms baseline).

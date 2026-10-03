@@ -14,6 +14,7 @@ run() { # run a TraceLens module in the dev image on the host network
 }
 docker compose up -d --wait postgres clickhouse ingest >/dev/null
 run -m tracelens_indexer index --repo /w --scope demo --name tracelens >/dev/null 2>&1
+mkdir -p .tmp
 fail=0
 #         fault                          service  route          expected top   min   max
 while IFS='|' read -r fault service route top lo hi; do
@@ -21,8 +22,8 @@ while IFS='|' read -r fault service route top lo hi; do
   DEMO_FAULTS=$fault docker compose up -d --force-recreate orders inventory payments loadgen >/dev/null 2>&1
   sleep 70   # service start + a few dozen requests under the fault
   run -m tracelens profile --service "$service" --route "$route" --window 50s --repo /w \
-      --repo-name tracelens --scope demo --json > /tmp/profile.json 2>/dev/null
-  if ! run scripts/check_profile.py /tmp/profile.json --expect-top "$top" --min-ms "$lo" --max-ms "$hi"; then fail=1; fi
+      --repo-name tracelens --scope demo --json > .tmp/profile.json 2>/dev/null
+  if ! run scripts/check_profile.py .tmp/profile.json --expect-top "$top" --min-ms "$lo" --max-ms "$hi"; then fail=1; fi
 done <<'CASES'
 payments.chargeCard:50|orders|POST /orders|chargeCard|45|70
 orders.insertOrder:40|orders|POST /orders|insertOrder|38|60

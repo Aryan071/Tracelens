@@ -40,6 +40,9 @@ Python package `indexer/` (tree-sitter TypeScript/JavaScript, git CLI, PostgreSQ
 
 Interfaces for Phase 3 (trace->code mapping): symbols carry repo-relative `path`, `name`, `qualified_name` and line spans, so OTel `code.file.path` + `code.function.name` map by lookup; `route_handlers(commit, method, path)` serves tier (b) (`http.route` + method); span-name fuzzy matching (tier c) is built on `find_symbols`.
 
+### Trace analysis engine (implemented in Phase 3)
+`engine/` turns spans into answers: `tree.py` (forest repair, ADR-0014), `timing.py` (self-time and critical path, ADR-0015), `mapping.py` (three-tier trace->code mapping with confidence, ADR-0016), `aggregate.py` (per-endpoint profiles with roll-up of unmapped time), `loader.py` (ClickHouse) and `symbols_pg.py` (loads an indexed commit from the Phase 2 PostgreSQL index into memory). CLI: `python -m tracelens endpoints|profile`. The commit used for mapping is passed explicitly for now (`--repo --rev`); Phase 4 derives it from the deployment (`service.version` -> commit SHA). The demo has a `DEMO_FAULTS` test hook (`service.function:ms`) that makes acceptance deterministic and which Phase 4's scripted bad deployments extend. Measured results: [BENCHMARKS.md](BENCHMARKS.md).
+
 ### Repository layout
 `/schema /engine /ingest /indexer /api /extension /demo /docs /bench /scripts`. Builds run in Docker (ADR-0001).
 
@@ -69,3 +72,7 @@ Interfaces for Phase 3 (trace->code mapping): symbols carry repo-relative `path`
 14. Route extraction is validated by fixtures and the demo app, not on a large real Express/Fastify codebase; NestJS decorator routing is not extracted.
 15. `py-tree-sitter` 0.26.0 crashes in `Node.start_point`/`end_point` (ADR-0012); re-check before upgrading the dependency.
 16. Python and Go indexing (named as "later" in the spec) are not started.
+17. Mapping depends on `code.*` attributes or an indexed route; the demo emits no `code.line.number` and compiled paths do not map (Phase 5). Decide whether a build step should emit TS line numbers or whether source maps suffice.
+18. Critical-path attribution assumes every span's clock is trustworthy within the skew the clamp policy absorbs (sub-millisecond in the demo). Large cross-host skew would misattribute time; there is no skew estimation yet.
+19. Trace-by-id lookup: bloom index kept over a projection (+110% storage for ~4 ms) at 1.08M spans; re-measure at 100x scale (BENCHMARKS.md).
+20. The end-to-end analysis (1,000 requests in ~440 ms) is split between ClickHouse fetch, row conversion and analysis; not yet profiled.
