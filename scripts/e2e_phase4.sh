@@ -49,7 +49,7 @@ done
 
 echo "== analyze"
 reg() { # n service from to
-  dev python -m tracelens regressions --service orders --from "$2" --to "$3" --repo /w/.tmp/e2e/repo \
+  dev python -m tracelens regressions --service "$2" --from "$3" --to "$4" --repo /w/.tmp/e2e/repo \
       --repo-name e2e-demo --scope demo --summary ".tmp/e2e/pair$1.json" --out ".tmp/e2e/evidence$1" \
       | tee ".tmp/e2e/report$1.txt" | sed 's/^/   /' || true   # exit code 2 = regression found
 }

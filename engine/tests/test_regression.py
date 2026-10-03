@@ -288,3 +288,47 @@ def test_an_endpoint_with_no_mapped_symbols_is_never_used_as_a_control() -> None
     c = run({A: known, B: unknown}, changed_symbols={HOT})
     assert B not in c.controls and A not in c.controls
     assert any("no control endpoints" in w for w in c.warnings)
+
+
+def test_normalization_can_suppress_a_flag_but_never_create_one() -> None:
+    """The e2e finding: the machine got 25% faster, but the target endpoint carries a fixed
+    wall-clock cost (a busy-wait) that did not speed up. Relative to its sped-up controls it looks
+    slower, yet users saw it get faster in absolute terms, so it must not be flagged."""
+    rnd = random.Random(21)
+    fixed_ms = 25.0
+    before = {
+        A: group(rnd, 300, 17, sym=HOT, add_ms=fixed_ms),
+        B: group(rnd, 300, 7, sym=RESERVE),
+        C: group(rnd, 300, 4, sym=CHARGE),
+        D: group(rnd, 300, 2.5, sym=OTHER),
+    }
+    fast = 0.75  # everything that scales with the machine gets 25% faster
+    after = {
+        A: group(
+            rnd, 300, 17, t0=100, sym=HOT, scale=fast, add_ms=fixed_ms
+        ),  # fixed part unchanged
+        B: group(rnd, 300, 7, t0=100, sym=RESERVE, scale=fast),
+        C: group(rnd, 300, 4, t0=100, sym=CHARGE, scale=fast),
+        D: group(rnd, 300, 2.5, t0=100, sym=OTHER, scale=fast),
+    }
+    c = run({ep: (before[ep], after[ep]) for ep in before}, changed_symbols={"src/other.ts:x"})
+    r = next(x for x in c.results if x.endpoint == A)
+    assert r.raw_after.p50 < r.before.p50  # faster in absolute terms
+    assert r.status != "regression"
+    assert (
+        any("slower only relative to unchanged endpoints" in n for n in r.notes) or r.status == "ok"
+    )
+
+
+def test_a_real_regression_under_a_speedup_is_still_found_when_the_raw_data_confirms_it() -> None:
+    rnd = random.Random(22)
+    fast = 0.8
+    before = baseline(rnd)
+    after = {
+        A: group(rnd, 200, 17, t0=100, sym=HOT, scale=fast, add_ms=30),  # raw still +40%
+        B: group(rnd, 200, 7, t0=100, sym=RESERVE, scale=fast),
+        C: group(rnd, 200, 4, t0=100, sym=CHARGE, scale=fast),
+        D: group(rnd, 200, 2.5, t0=100, sym=OTHER, scale=fast),
+    }
+    c = run({ep: (before[ep], after[ep]) for ep in before}, changed_symbols={HOT})
+    assert status(c)[A] == "regression"

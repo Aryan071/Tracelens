@@ -350,7 +350,7 @@ def _classify(
             rel95 >= cfg.min_rel_delta and abs95 >= cfg.min_abs_delta_ms
         )
 
-    regressed = (
+    would_regress = (
         s.p_adj < cfg.alpha and s.mw.common_language >= cfg.min_cl and slower(r50, r95, a50, a95)
     )
     improved = (
@@ -364,9 +364,22 @@ def _classify(
         and raw.common_language >= cfg.min_cl
         and slower(raw_r50, raw_r95, raw_after.p50 - before.p50, raw_after.p95 - before.p95)
     )
+    # Normalization may SUPPRESS a flag but must never CREATE one: a regression has to show up in
+    # the raw latencies users actually experienced. A fixed wall-clock cost does not speed up when
+    # the machine does, so dividing by an environment factor < 1 can make such an endpoint look
+    # slower than its controls while it got faster in absolute terms.
+    raw_confirms = raw.common_language >= 0.55 and (
+        raw_r50 >= cfg.min_rel_delta / 2 or raw_r95 >= cfg.min_rel_delta / 2
+    )
+    regressed = would_regress and raw_confirms
     notes: list[str] = []
+    if would_regress and not raw_confirms:
+        notes.append(
+            f"slower only relative to unchanged endpoints (raw p50 {raw_r50:+.0%}, environment "
+            f"factor {shift:.2f}): not flagged"
+        )
     if same_commit:
-        status = "environmental" if (raw_flag or regressed) else "ok"
+        status = "environmental" if (raw_flag or would_regress) else "ok"
         if status == "environmental":
             notes.append("both deployments run the same commit: the shift cannot come from code")
     elif regressed:
