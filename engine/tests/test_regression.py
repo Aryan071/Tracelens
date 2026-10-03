@@ -242,9 +242,11 @@ def test_results_do_not_depend_on_input_order() -> None:
 
 
 # ------------------------------------------------------------------ calibration and power
-def test_false_positive_rate_on_identical_distributions_is_far_below_alpha() -> None:
+def test_false_positive_rate_on_identical_distributions_is_at_most_one_percent_overall() -> None:
     """A/A: both groups drawn from the same distribution (including heavy ties from 0.1 ms rounding
-    and an environment shift that the controls absorb). Any flagged regression is a false positive."""
+    and an environment shift that the controls absorb). Any flagged regression is a false positive.
+    This asserts the overall rate across mixed sample sizes; bench/detector_calibration.py shows the
+    per-size rates (about 2% at n=40, under 0.5% at n=250), which BENCHMARKS.md reports."""
     rnd = random.Random(2026)
     trials, fp = 400, 0
     for _ in range(trials):

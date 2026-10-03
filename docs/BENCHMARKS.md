@@ -282,3 +282,52 @@ granules); the comparison should be repeated at 100x this size before it is trea
 - Moving an injected delay across three functions moved the top-ranked contributor each time, at the
   right `file:line` (`scripts/phase3_acceptance.sh`): `chargeCard` 53.5 ms (+50 injected),
   `insertOrder` 43.2 ms (+40), `reserveStock` 67.2 ms (+60, which includes its ~7 ms baseline).
+
+
+---
+
+# Phase 4: regression detection and commit ranking
+
+Raw output: `bench/results/detector-calibration.json` (`bench/detector_calibration.py`, synthetic
+lognormal latencies with 0.1 ms rounding ties, four endpoints, one slowed by X%; 90 s to run).
+
+## False positives (A/A: both groups from the same distribution, any flagged regression is a false positive)
+
+| Requests per side | env shift 1.0 | env 1.15 (absorbed by controls) | env 0.9 |
+|---|---|---|---|
+| 40 | 2.14% (15/700) | 1.71% (12/700) | 0.71% (5/700) |
+| 100 | 1.43% (10/700) | 1.14% (8/700) | 0.00% |
+| 250 | 0.00% | 0.29% (2/700) | 0.00% |
+
+**Overall 0.83% (52 of 6,300 comparisons).** The rate depends on sample size: just above the
+30-request floor it is about 2%. Benjamini-Hochberg controls the false *discovery* rate across the
+tests of one comparison, not the chance that a comparison flags anything, and the effect-size gates
+trim but do not remove the small-sample excess. Recommendation: treat results with fewer than 100
+requests per side as indicative (the output already warns below 30; a stricter floor is a one-line
+config change that trades power).
+
+## Power (a true slowdown of one endpoint; 300 trials per cell)
+
+| Slowdown | n=100 per side | n=300 per side |
+|---|---|---|
+| +5% | 11.7% | 7.0% |
+| +10% | 39.7% | 49.7% |
+| +15% | 75.3% | 95.0% |
+| +20% | **96.3%** | 100% |
+| +30% / +50% | 100% | 100% |
+
+Slowdowns under about 10% are intentionally not flagged (the effect-size gate): a 5% shift is within
+the run-to-run drift measured on this machine.
+
+## End to end on real containers (`scripts/e2e_phase4.sh`, 4 deployments, ~10 minutes)
+Scratch repo with 8 commits (4 decoys among them: whitespace-only, comment-only, unrelated edits),
+deployments v1.0.0 -> v1.1.0 (sync call in the hot path) -> v1.1.1 (identical code redeployed) ->
+v1.2.0 (N+1 queries), load at 12 requests/s, registered through `POST /deployments`:
+- 1.0.0 -> 1.1.0: flags exactly `POST /orders` (p50 24.9 -> 50.7 ms); the guilty commit is ranked #1
+  with score 1.00 and every decoy scores 0 (including the whitespace-only and comment-only commits,
+  which produce no symbol changes); the three other endpoints used as controls stay quiet.
+- 1.1.0 -> 1.1.1 (same commit): no regression flagged on any endpoint.
+- 1.1.1 -> 1.2.0: flags exactly `GET /users/:userId/orders` (p50 3.9 -> 23.9 ms, +564% p95); the N+1 commit
+  ranked #1. `POST /orders` was NOT flagged: the machine got ~25% faster during the long final window
+  while that endpoint carries a fixed 25 ms busy-wait, so relative to its sped-up controls it looked
+  slower although its raw latency fell 12% (see ADR-0017's amendment).

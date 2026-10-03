@@ -1,0 +1,117 @@
+{
+ "aa_false_positive": {
+  "n=40,env=1.0": {
+   "trials": 700,
+   "false_positives": 15,
+   "rate": 0.0214
+  },
+  "n=40,env=1.15": {
+   "trials": 700,
+   "false_positives": 12,
+   "rate": 0.0171
+  },
+  "n=40,env=0.9": {
+   "trials": 700,
+   "false_positives": 5,
+   "rate": 0.0071
+  },
+  "n=100,env=1.0": {
+   "trials": 700,
+   "false_positives": 10,
+   "rate": 0.0143
+  },
+  "n=100,env=1.15": {
+   "trials": 700,
+   "false_positives": 8,
+   "rate": 0.0114
+  },
+  "n=100,env=0.9": {
+   "trials": 700,
+   "false_positives": 0,
+   "rate": 0.0
+  },
+  "n=250,env=1.0": {
+   "trials": 700,
+   "false_positives": 0,
+   "rate": 0.0
+  },
+  "n=250,env=1.15": {
+   "trials": 700,
+   "false_positives": 2,
+   "rate": 0.0029
+  },
+  "n=250,env=0.9": {
+   "trials": 700,
+   "false_positives": 0,
+   "rate": 0.0
+  }
+ },
+ "aa_overall": {
+  "trials": 6300,
+  "false_positives": 52,
+  "rate": 0.00825
+ },
+ "power": {
+  "n=100,+5%": {
+   "trials": 300,
+   "detected": 35,
+   "power": 0.117
+  },
+  "n=100,+10%": {
+   "trials": 300,
+   "detected": 119,
+   "power": 0.397
+  },
+  "n=100,+15%": {
+   "trials": 300,
+   "detected": 226,
+   "power": 0.753
+  },
+  "n=100,+20%": {
+   "trials": 300,
+   "detected": 289,
+   "power": 0.963
+  },
+  "n=100,+30%": {
+   "trials": 300,
+   "detected": 300,
+   "power": 1.0
+  },
+  "n=100,+50%": {
+   "trials": 300,
+   "detected": 300,
+   "power": 1.0
+  },
+  "n=300,+5%": {
+   "trials": 300,
+   "detected": 21,
+   "power": 0.07
+  },
+  "n=300,+10%": {
+   "trials": 300,
+   "detected": 149,
+   "power": 0.497
+  },
+  "n=300,+15%": {
+   "trials": 300,
+   "detected": 285,
+   "power": 0.95
+  },
+  "n=300,+20%": {
+   "trials": 300,
+   "detected": 300,
+   "power": 1.0
+  },
+  "n=300,+30%": {
+   "trials": 300,
+   "detected": 300,
+   "power": 1.0
+  },
+  "n=300,+50%": {
+   "trials": 300,
+   "detected": 300,
+   "power": 1.0
+  }
+ },
+ "seconds": 89.8
+}
