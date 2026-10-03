@@ -1,0 +1,38 @@
+{
+  "label": "burst-small-buffer-http",
+  "mode": "burst",
+  "protocol": "http",
+  "procs": 4,
+  "threads": 4,
+  "spans_per_request": 500,
+  "offered_rate": "max",
+  "send_seconds": 172.43,
+  "accepted_spans": 2000000,
+  "accepted_spans_per_s": 11599,
+  "inserted_spans_per_s_incl_drain": 11530,
+  "rejected_requests": 4672,
+  "transport_errors": 0,
+  "attempts": 8672,
+  "latency_ms": {
+    "p50": 16.28,
+    "p95": 52.53,
+    "p99": 99.4,
+    "mean": 21.51
+  },
+  "peak_queue_spans": 20000.0,
+  "drain_seconds": 1.03,
+  "server_received_spans": 2000000.0,
+  "server_inserted_spans": 2000000.0,
+  "server_invalid_spans": 0.0,
+  "server_lost_spans": 0.0,
+  "service": "bench-da77d41e",
+  "stored_in_clickhouse": 2000000,
+  "unique_spans_in_clickhouse": 2000000,
+  "expected_spans": 2000000,
+  "PASS_no_loss_no_dup": true
+}
+
+resource usage during run (docker stats, ~1-2s samples; 100% = one core):
+  tl-bench-load                    cpu avg(busy)     14%  max    220%   peak mem     105 MiB   (87 samples)
+  tracelens-clickhouse-1           cpu avg(busy)     37%  max    114%   peak mem     772 MiB   (87 samples)
+  tracelens-ingest-1               cpu avg(busy)     97%  max    179%   peak mem     368 MiB   (87 samples)

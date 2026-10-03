@@ -21,7 +21,9 @@ SPANS_LOST = Counter(
     "tracelens_ingest_spans_lost_total", "Accepted spans abandoned at shutdown timeout"
 )
 INSERT_ERRORS = Counter("tracelens_ingest_insert_errors_total", "Failed ClickHouse insert attempts")
-QUEUE_SPANS = Gauge("tracelens_ingest_queue_spans", "Spans currently buffered")
+QUEUE_SPANS = Gauge(
+    "tracelens_ingest_queue_spans", "Spans currently buffered", multiprocess_mode="livesum"
+)
 BATCH_SPANS = Histogram(
     "tracelens_ingest_batch_spans",
     "Spans per insert batch",

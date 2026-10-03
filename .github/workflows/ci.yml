@@ -22,6 +22,15 @@ jobs:
       - run: uv run mypy engine/src engine/tests
       - run: uv run pytest engine
 
+  ingest-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up -d --wait clickhouse
+      - run: make test-integration
+      - if: failure()
+        run: docker compose logs clickhouse --tail=100
+
   node:
     runs-on: ubuntu-latest
     steps:

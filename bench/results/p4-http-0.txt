@@ -1,0 +1,64 @@
+Using CPython 3.12.12 interpreter at: /usr/local/bin/python3
+Creating virtual environment at: /tmp/venv
+   Building tracelens-ingest @ file:///w/ingest
+   Building tracelens-engine @ file:///w/engine
+Downloading uvloop (4.3MiB)
+Downloading ast-serialize (1.3MiB)
+Downloading grpcio (6.8MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading lz4 (1.3MiB)
+Downloading mypy (14.8MiB)
+Downloading ruff (9.9MiB)
+Downloading pygments (1.2MiB)
+Downloading black (1.8MiB)
+Downloading clickhouse-connect (1.4MiB)
+ Downloaded pygments
+ Downloaded ast-serialize
+ Downloaded lz4
+ Downloaded clickhouse-connect
+ Downloaded black
+ Downloaded pydantic-core
+ Downloaded uvloop
+ Downloaded grpcio
+ Downloaded ruff
+ Downloaded mypy
+      Built tracelens-ingest @ file:///w/ingest
+      Built tracelens-engine @ file:///w/engine
+Installed 51 packages in 50ms
+{
+  "label": "p4-http-0",
+  "mode": "rate",
+  "protocol": "http",
+  "procs": 2,
+  "threads": 4,
+  "spans_per_request": 500,
+  "offered_rate": "max",
+  "send_seconds": 20.26,
+  "accepted_spans": 1831000,
+  "accepted_spans_per_s": 90385,
+  "inserted_spans_per_s_incl_drain": 87061,
+  "rejected_requests": 0,
+  "transport_errors": 0,
+  "attempts": 3662,
+  "latency_ms": {
+    "p50": 26.1,
+    "p95": 140.43,
+    "p99": 252.53,
+    "mean": 43.12
+  },
+  "peak_queue_spans": 32500.0,
+  "drain_seconds": 0.77,
+  "server_received_spans": 1831000.0,
+  "server_inserted_spans": 1831000.0,
+  "server_invalid_spans": 0.0,
+  "server_lost_spans": 0.0,
+  "service": "bench-c5bbd29c",
+  "stored_in_clickhouse": 1831000,
+  "unique_spans_in_clickhouse": 1831000,
+  "PASS_stored_equals_accepted": true
+}
+
+resource usage during run (docker stats, ~1-2s samples; 100% = one core):
+  tl-bench-load                    cpu avg(busy)     50%  max    246%   peak mem      91 MiB   (13 samples)
+  tracelens-clickhouse-1           cpu avg(busy)    139%  max    248%   peak mem     882 MiB   (13 samples)
+  tracelens-ingest-1               cpu avg(busy)    318%  max    421%   peak mem     516 MiB   (13 samples)

@@ -29,6 +29,7 @@ class Config:
     batch_max_spans: int = 10_000
     batch_max_wait_s: float = 1.0
     insert_workers: int = 2
+    processes: int = 1  # OS processes sharing the ports via SO_REUSEPORT
     max_request_bytes: int = 16 * 1024 * 1024
     shutdown_timeout_s: float = 30.0
     log_level: str = "INFO"
@@ -50,6 +51,7 @@ class Config:
             batch_max_spans=_int("BATCH_MAX_SPANS", d.batch_max_spans),
             batch_max_wait_s=_float("BATCH_MAX_WAIT_S", d.batch_max_wait_s),
             insert_workers=_int("INSERT_WORKERS", d.insert_workers),
+            processes=_int("INGEST_PROCESSES", d.processes),
             max_request_bytes=_int("MAX_REQUEST_BYTES", d.max_request_bytes),
             shutdown_timeout_s=_float("SHUTDOWN_TIMEOUT_S", d.shutdown_timeout_s),
             log_level=os.environ.get("LOG_LEVEL", d.log_level),
