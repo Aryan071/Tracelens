@@ -22,7 +22,7 @@ export async function insertOrder(userId: number, sku: string, qty: number): Pro
 
 export async function findOrdersByUser(userId: number) {
   return traced("findOrdersByUser", FILE, async () => {
-    const r = await pool.query("SELECT id, sku, qty, created_at FROM orders.orders WHERE user_id = $1 ORDER BY id DESC LIMIT 20", [userId]);
+    const r = await pool.query("SELECT id, sku, qty, created_at FROM orders.orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20", [userId]);
     return r.rows;
   });
 }

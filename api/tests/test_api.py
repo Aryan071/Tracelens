@@ -113,6 +113,16 @@ def test_committed_openapi_spec_matches_the_app() -> None:
     """api/openapi.json is the contract the extension builds against; `make gen-openapi` refreshes it."""
     spec = json.loads((Path(__file__).resolve().parents[1] / "openapi.json").read_text())
     assert spec == json.loads(json.dumps(create_app().openapi()))
-    assert set(spec["paths"]) == {"/deployments"}
+    assert set(spec["paths"]) == {
+        "/deployments",
+        "/endpoints",
+        "/comparisons",
+        "/symbols",
+        "/queries/{fingerprint}",
+        "/traces/{trace_id}",
+        "/commits/{sha}",
+        "/source",
+        "/explanations",
+    }
     assert set(spec["paths"]["/deployments"]) == {"get", "post"}
     assert {"200", "201", "409", "422"} <= set(spec["paths"]["/deployments"]["post"]["responses"])

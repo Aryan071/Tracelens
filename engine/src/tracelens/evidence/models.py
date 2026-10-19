@@ -4,7 +4,7 @@
 from __future__ import annotations
 from typing import Annotated, Literal
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class DeploymentRef(BaseModel):
@@ -133,6 +133,25 @@ class AmbiguousWithItem(RootModel[str]):
     root: Annotated[str, Field(pattern="^[0-9a-f]{7,40}$")]
 
 
+class Kind(StrEnum):
+    drop_index = "drop_index"
+    create_index = "create_index"
+    alter_table = "alter_table"
+    drop_table = "drop_table"
+    create_table = "create_table"
+
+
+class SchemaChange(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    kind: Kind
+    object: Annotated[str, Field(description="Index or table the statement names.")]
+    table: Annotated[str | None, Field(description="Table affected, when known.")] = None
+    file: str
+    line: Annotated[int | None, Field(ge=1)] = None
+
+
 class CommitChangeData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -155,6 +174,18 @@ class CommitChangeData(BaseModel):
         list[str] | None,
         Field(description="Changed non-source files that could not be tied to symbols."),
     ] = None
+    schemaChanges: Annotated[
+        list[SchemaChange] | None,
+        Field(
+            description="Database schema changes (DDL) in the commit that touch tables read by a regressed query."
+        ),
+    ] = None
+
+
+class ChangeKind(StrEnum):
+    slower = "slower"
+    more_calls = "more_calls"
+    new = "new"
 
 
 class SqlChangeData(BaseModel):
@@ -175,6 +206,26 @@ class SqlChangeData(BaseModel):
             description="Present only if EXPLAIN (never ANALYZE) was run on a configured replica."
         ),
     ] = None
+    changeKind: Annotated[
+        ChangeKind | None,
+        Field(
+            description="slower: each call takes longer (e.g. a plan change); more_calls: more calls per request (N+1); new: the query did not exist in the baseline."
+        ),
+    ] = None
+    pValue: Annotated[
+        float | None,
+        Field(
+            description="Benjamini-Hochberg adjusted one-sided Mann-Whitney U p-value of time per request spent in this query.",
+            ge=0.0,
+            le=1.0,
+        ),
+    ] = None
+
+
+class MappingMethod1(StrEnum):
+    source_map = "source_map"
+    function_name = "function_name"
+    none = "none"
 
 
 class ErrorGroupData(BaseModel):
@@ -187,6 +238,19 @@ class ErrorGroupData(BaseModel):
     count: Annotated[int, Field(ge=0)]
     isNewInDeployment: bool
     topFrame: CodeLocation | None = None
+    baselineCount: Annotated[
+        int | None,
+        Field(description="Occurrences of this error group in the baseline deployment.", ge=0),
+    ] = None
+    frames: Annotated[
+        list[CodeLocation] | None,
+        Field(
+            description="In-application stack frames, innermost first, resolved through source maps when available."
+        ),
+    ] = None
+    mappingMethod: Annotated[
+        MappingMethod1 | None, Field(description="How topFrame was tied to an indexed symbol.")
+    ] = None
 
 
 class Subject(BaseModel):

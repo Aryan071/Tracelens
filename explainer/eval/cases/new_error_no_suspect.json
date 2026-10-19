@@ -1,0 +1,89 @@
+{
+  "description": "A new exception whose throwing function no commit in the range touched.",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_post_orders_errors_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 0.48,
+        "data": {
+          "baselineCount": 0,
+          "count": 8,
+          "exceptionType": "Error",
+          "fingerprint": "f0ab1ac6893947b3",
+          "frames": [
+            {
+              "file": "/app/demo/src/payments.js",
+              "line": 35
+            }
+          ],
+          "isNewInDeployment": true,
+          "mappingMethod": "function_name",
+          "message": "cannot read property 1 of undefined",
+          "topFrame": {
+            "file": "/app/demo/src/payments.js",
+            "line": 35,
+            "symbol": "chargeCard"
+          }
+        },
+        "id": "ev_error_f0ab1ac6893947b3",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "/app/demo/src/payments.js",
+              "line": 35,
+              "symbol": "chargeCard"
+            }
+          ],
+          "commitShas": [],
+          "relatedEvidenceIds": [],
+          "traceIds": [
+            "00000000000000000000000000000001",
+            "00000000000000000000000000000002",
+            "00000000000000000000000000000003"
+          ]
+        },
+        "type": "error_group"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "POST /orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "cannot read property"
+      ],
+      "point": "message"
+    },
+    {
+      "any": [
+        "chargeCard"
+      ],
+      "point": "function"
+    },
+    {
+      "any": [
+        "no commit",
+        "no suspect",
+        "none of the commits",
+        "not touched",
+        "no change",
+        "no commit in the range"
+      ],
+      "point": "says no commit explains it"
+    }
+  ],
+  "name": "new_error_no_suspect"
+}

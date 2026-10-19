@@ -1,0 +1,222 @@
+{
+  "description": "Each order of a user is fetched with its own query: calls per request rise from 1 to 21 at the same per-call cost.",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_get_users_userid_orders_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 15.211,
+            "p95Ms": 16.611,
+            "p99Ms": 17.065
+          },
+          "before": {
+            "count": 200,
+            "p50Ms": 2.872,
+            "p95Ms": 4.399,
+            "p99Ms": 5.133
+          },
+          "commonLanguageEffect": 1.0,
+          "controlNormalization": {
+            "controls": [
+              "POST /orders",
+              "POST /reserve"
+            ],
+            "shiftFactor": 0.9886
+          },
+          "effectSize": 1.0,
+          "notes": [
+            "raw (not control-normalized) after-deploy p50 15.04 ms vs before 2.87 ms"
+          ],
+          "p95DeltaPct": 277.58,
+          "pValue": 7.24628e-67,
+          "rawPValue": 7.24628e-67,
+          "target": "GET /users/:userId/orders",
+          "test": "mann_whitney_u"
+        },
+        "id": "ev_latency_orders_get_users_userid_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "commitShas": [
+            "555555555555"
+          ],
+          "queryFingerprints": [
+            "ea15fc654aabe6b0"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_get_users_userid_orders_1",
+            "ev_sql_orders_get_users_userid_orders_ea15fc654aabe6b0",
+            "ev_commit_5555555_orders_get_users_userid_orders"
+          ],
+          "traceIds": [
+            "0000000000000000000000000001eeac",
+            "0000000000000000000000000001ccde",
+            "0000000000000000000000000001d1e6"
+          ]
+        },
+        "type": "latency_regression"
+      },
+      {
+        "confidence": 0.99,
+        "data": {
+          "criticalTimeAfterMs": 12.97,
+          "criticalTimeBeforeMs": 2.539,
+          "mappingConfidence": 0.99,
+          "mappingMethod": "semconv",
+          "onCriticalPath": true,
+          "selfTimeAfterMs": 11.673,
+          "selfTimeBeforeMs": 2.285,
+          "shareOfIncrease": 1.0,
+          "symbol": "demo/src/orders.ts:findOrdersByUser"
+        },
+        "id": "ev_attr_orders_get_users_userid_orders_1",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_get_users_userid_orders"
+          ]
+        },
+        "type": "span_attribution"
+      },
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 4000,
+            "p50Ms": 0.605,
+            "p95Ms": 0.844,
+            "p99Ms": 0.971
+          },
+          "before": {
+            "count": 0,
+            "p50Ms": 0.0,
+            "p95Ms": 0.0,
+            "p99Ms": 0.0
+          },
+          "callCountAfter": 20.0,
+          "callCountBefore": 0.0,
+          "changeKind": "new",
+          "fingerprint": "ea15fc654aabe6b0",
+          "normalizedQuery": "select id, sku, qty, created_at from orders.orders where id = ?",
+          "pValue": 2.35922e-76
+        },
+        "id": "ev_sql_orders_get_users_userid_orders_ea15fc654aabe6b0",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 14,
+              "symbol": "insertOrder"
+            }
+          ],
+          "queryFingerprints": [
+            "ea15fc654aabe6b0"
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_get_users_userid_orders",
+            "ev_attr_orders_get_users_userid_orders_1"
+          ],
+          "traceIds": [
+            "0000000000000000000000000001c1f1",
+            "0000000000000000000000000001ea1f",
+            "0000000000000000000000000001e78d"
+          ]
+        },
+        "type": "sql_change"
+      },
+      {
+        "confidence": 0.95,
+        "data": {
+          "author": "Ada",
+          "changedSymbols": [
+            "demo/src/orders.ts:findOrdersByUser"
+          ],
+          "committedAt": "2026-10-02T09:00:00Z",
+          "rank": 1,
+          "reasons": [
+            "modified demo/src/orders.ts:findOrdersByUser, which accounts for 100% of the latency increase"
+          ],
+          "score": 1.0,
+          "sha": "555555555555",
+          "subject": "Hydrate user orders with full details"
+        },
+        "id": "ev_commit_5555555_orders_get_users_userid_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "commitShas": [
+            "555555555555"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_get_users_userid_orders_1"
+          ]
+        },
+        "type": "commit_change"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "GET /users/:userId/orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "GET /users"
+      ],
+      "point": "endpoint"
+    },
+    {
+      "any": [
+        "N+1",
+        "more often",
+        "calls per request",
+        "more calls"
+      ],
+      "point": "N+1 / more calls"
+    },
+    {
+      "any": [
+        "5555555",
+        "hydrate"
+      ],
+      "point": "guilty commit"
+    },
+    {
+      "any": [
+        "findOrdersByUser"
+      ],
+      "point": "function"
+    }
+  ],
+  "name": "n_plus_one"
+}

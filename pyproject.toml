@@ -1,5 +1,5 @@
 [tool.uv.workspace]
-members = ["engine", "ingest", "indexer", "api"]
+members = ["engine", "ingest", "indexer", "api", "explainer"]
 
 [tool.ruff]
 line-length = 100
@@ -13,6 +13,9 @@ select = ["E", "F", "I", "B", "UP", "S"]
 "**/tests/**" = ["S101", "E501", "S608", "S603", "S607", "S311", "S106"]  # asserts, long SQL literals, test-only f-string SQL
 "bench/**" = ["S101", "S106", "S310", "S311", "S603", "S607", "S608", "E501"]  # load tool, not shipped code
 "scripts/**" = ["E501", "S101"]  # acceptance helpers
+"explainer/eval/**" = ["S101", "S311", "E501"]  # evaluation tooling, not shipped code
+"explainer/src/tracelens_explain/template.py" = ["E501"]  # prose f-strings
+"explainer/src/tracelens_explain/llm.py" = ["E501"]  # the system prompt
 "demo/bad-deployments/**" = ["E501", "S603", "S607"]  # source-code string literals; shells out to git
 "engine/src/tracelens/cli.py" = ["E501"]  # table-formatting f-strings
 "engine/src/tracelens/pipeline.py" = ["E501"]  # report-formatting f-strings
@@ -22,7 +25,7 @@ select = ["E", "F", "I", "B", "UP", "S"]
 
 [tool.mypy]
 explicit_package_bases = true
-mypy_path = "engine/src:ingest/src:indexer/src:api/src:engine/tests"
+mypy_path = "engine/src:ingest/src:indexer/src:api/src:explainer/src:engine/tests:explainer/tests"
 strict = true
 plugins = ["pydantic.mypy"]
 
@@ -33,8 +36,8 @@ known-first-party = ["tracelens"]
 asyncio_mode = "auto"
 addopts = "--import-mode=importlib"
 asyncio_default_fixture_loop_scope = "function"
-testpaths = ["engine", "ingest", "indexer", "api"]
-pythonpath = ["engine/tests"]  # lets engine tests import the shared spanfactory helper
+testpaths = ["engine", "ingest", "indexer", "api", "explainer"]
+pythonpath = ["engine/tests", "explainer/tests"]  # lets engine tests import the shared spanfactory helper
 markers = ["integration: needs a running ClickHouse (see Makefile test-integration)"]
 
 # grpcio / protobuf ship without inline types; stub packages (types-grpcio,

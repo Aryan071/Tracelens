@@ -1,0 +1,215 @@
+{
+  "description": "A new query appears on the endpoint's hot path (absent in the baseline) and one commit adds it.",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_get_users_userid_orders_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 11.165,
+            "p95Ms": 12.565,
+            "p99Ms": 13.019
+          },
+          "before": {
+            "count": 200,
+            "p50Ms": 2.872,
+            "p95Ms": 4.399,
+            "p99Ms": 5.133
+          },
+          "commonLanguageEffect": 1.0,
+          "controlNormalization": {
+            "controls": [
+              "POST /orders",
+              "POST /reserve"
+            ],
+            "shiftFactor": 0.9886
+          },
+          "effectSize": 1.0,
+          "notes": [
+            "raw (not control-normalized) after-deploy p50 11.04 ms vs before 2.87 ms"
+          ],
+          "p95DeltaPct": 185.61,
+          "pValue": 7.24628e-67,
+          "rawPValue": 7.24628e-67,
+          "target": "GET /users/:userId/orders",
+          "test": "mann_whitney_u"
+        },
+        "id": "ev_latency_orders_get_users_userid_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "commitShas": [
+            "777777777777"
+          ],
+          "queryFingerprints": [
+            "1fe6394d409622f6"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_get_users_userid_orders_1",
+            "ev_sql_orders_get_users_userid_orders_1fe6394d409622f6",
+            "ev_commit_7777777_orders_get_users_userid_orders"
+          ],
+          "traceIds": [
+            "0000000000000000000000000001df0c",
+            "0000000000000000000000000001bd3e",
+            "0000000000000000000000000001c246"
+          ]
+        },
+        "type": "latency_regression"
+      },
+      {
+        "confidence": 0.99,
+        "data": {
+          "criticalTimeAfterMs": 9.531,
+          "criticalTimeBeforeMs": 2.539,
+          "mappingConfidence": 0.99,
+          "mappingMethod": "semconv",
+          "onCriticalPath": true,
+          "selfTimeAfterMs": 8.578,
+          "selfTimeBeforeMs": 2.285,
+          "shareOfIncrease": 1.0,
+          "symbol": "demo/src/orders.ts:findOrdersByUser"
+        },
+        "id": "ev_attr_orders_get_users_userid_orders_1",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_get_users_userid_orders"
+          ]
+        },
+        "type": "span_attribution"
+      },
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 9.147,
+            "p95Ms": 13.693,
+            "p99Ms": 15.385
+          },
+          "before": {
+            "count": 0,
+            "p50Ms": 0.0,
+            "p95Ms": 0.0,
+            "p99Ms": 0.0
+          },
+          "callCountAfter": 1.0,
+          "callCountBefore": 0.0,
+          "changeKind": "new",
+          "fingerprint": "1fe6394d409622f6",
+          "normalizedQuery": "select sku, qty from inventory.stock where qty < ?",
+          "pValue": 2.35922e-76
+        },
+        "id": "ev_sql_orders_get_users_userid_orders_1fe6394d409622f6",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "queryFingerprints": [
+            "1fe6394d409622f6"
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_get_users_userid_orders",
+            "ev_attr_orders_get_users_userid_orders_1"
+          ],
+          "traceIds": [
+            "0000000000000000000000000001c4bd",
+            "0000000000000000000000000001bd8c",
+            "0000000000000000000000000001c67c"
+          ]
+        },
+        "type": "sql_change"
+      },
+      {
+        "confidence": 0.95,
+        "data": {
+          "author": "Ada",
+          "changedSymbols": [
+            "demo/src/orders.ts:findOrdersByUser"
+          ],
+          "committedAt": "2026-10-02T09:00:00Z",
+          "rank": 1,
+          "reasons": [
+            "modified demo/src/orders.ts:findOrdersByUser, which accounts for 100% of the latency increase"
+          ],
+          "score": 1.0,
+          "sha": "777777777777",
+          "subject": "Show low stock warning"
+        },
+        "id": "ev_commit_7777777_orders_get_users_userid_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "commitShas": [
+            "777777777777"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_get_users_userid_orders_1"
+          ]
+        },
+        "type": "commit_change"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "GET /users/:userId/orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "did not exist",
+        "new",
+        "not exist in the baseline"
+      ],
+      "point": "new query"
+    },
+    {
+      "any": [
+        "low stock",
+        "7777777"
+      ],
+      "point": "commit"
+    },
+    {
+      "any": [
+        "inventory.stock"
+      ],
+      "point": "table"
+    }
+  ],
+  "name": "new_query_on_hot_path"
+}

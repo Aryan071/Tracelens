@@ -6,16 +6,19 @@ found exactly once raises: the scenarios must be updated when the demo changes, 
 The commits are mixed with decoys (formatting-only, comment-only, unrelated edits) so ranking the
 guilty commit first is a real test, not a lookup.
 
-  python3 demo/bad-deployments/scenarios.py build <source-repo> <dest-dir>   # prints the commit shas as JSON
+  python3 demo/bad-deployments/scenarios.py build <source-repo> <dest-dir> [--snapshot]
+      # prints the commit shas as JSON; --snapshot starts from the working tree's demo/ (uncommitted)
 
-Scenarios implemented here change application code (sync call in the hot path, N+1 queries). The
-missing-index and thrown-exception regressions need SQL/error correlation and arrive in Phase 5.
+Scenarios: a synchronous call in the hot path and N+1 queries (Phase 4: application code), a missing
+index (a migration that drops it: no application symbol changes) and a thrown exception (Phase 5).
+An edit whose anchor (`old`) is empty creates a new file, which must not exist yet.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -83,6 +86,30 @@ SCENARIOS: dict[str, tuple[str, list[Edit]]] = {
             )
         ],
     ),
+    "decoy_db_retries_3": (
+        "Tune DB wait retries once more",
+        [("demo/src/db.ts", "waitForDb(retries = 90)", "waitForDb(retries = 120)")],
+    ),
+    "decoy_comment_reserve_2": (  # comment only
+        "Document createOrder",
+        [
+            (
+                ORDERS,
+                "export async function createOrder(",
+                "// Creates an order: reserve stock, insert the row, charge the card.\nexport async function createOrder(",
+            )
+        ],
+    ),
+    "decoy_new_fn_inventory": (
+        "Add formatSku helper",
+        [
+            (
+                "demo/src/inventory.ts",
+                'app.post("/reserve"',
+                'export function formatSku(n: number): string {\n  return "sku-" + n;\n}\n\napp.post("/reserve"',
+            )
+        ],
+    ),
     # ---- guilty commits ----
     "guilty_sync_call": (
         "Add payload fingerprint for audit logging",
@@ -111,6 +138,39 @@ SCENARIOS: dict[str, tuple[str, list[Edit]]] = {
             )
         ],
     ),
+    # Phase 5. No application symbol changes: only a migration (deploy_demo.sh applies new ones).
+    "guilty_missing_index": (
+        "Drop unused orders user_id index",
+        [
+            (
+                "demo/db/migrations/002_drop_orders_user_idx.sql",
+                "",
+                "-- The index is only used by the order history page, which is rarely opened.\n"
+                "-- Dropping it makes inserts cheaper.\n"
+                "DROP INDEX orders.orders_user_id_idx;\n",
+            )
+        ],
+    ),
+    # A validation that throws, plus the error handling a developer would add so the process
+    # survives it (Express 4 does not catch rejected promises): the handler answers 500.
+    "guilty_throw": (
+        "Reject orders above the payment limit",
+        [
+            (
+                ORDERS,
+                '  return traced("createOrder", FILE, async () => {\n',
+                '  return traced("createOrder", FILE, async () => {\n'
+                "    const totalCents = qty * 1999;\n"
+                "    if (totalCents > 5000) throw new Error(`order total ${totalCents} exceeds the payment limit`);\n",
+            ),
+            (
+                ORDERS,
+                "  const out = await createOrder(userId, sku, qty);\n  res.status(out.status).json(out.body);\n",
+                "  try {\n    const out = await createOrder(userId, sku, qty);\n    res.status(out.status).json(out.body);\n"
+                '  } catch {\n    res.status(500).json({ error: "internal error" });\n  }\n',
+            ),
+        ],
+    ),
 }
 
 # (scenario, label): the history that gets built, oldest first. Labels mark the commits tests care about.
@@ -123,6 +183,11 @@ HISTORY = [
     ("decoy_new_fn_payments", None),
     ("guilty_n_plus_one", "guilty2"),
     ("decoy_db_retries_again", "tip2"),
+    ("decoy_new_fn_inventory", None),
+    ("guilty_missing_index", "guilty3"),
+    ("decoy_db_retries_3", "tip3"),
+    ("guilty_throw", "guilty4"),
+    ("decoy_comment_reserve_2", "tip4"),
 ]
 
 
@@ -130,6 +195,12 @@ def apply(name: str, root: Path) -> str:
     subject, edits = SCENARIOS[name]
     for rel, old, new in edits:
         path = root / rel
+        if old == "":
+            if path.exists():
+                raise RuntimeError(f"{name}: {rel} already exists")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(new)
+            continue
         text = path.read_text()
         if text.count(old) != 1:
             raise RuntimeError(
@@ -155,12 +226,25 @@ def git(root: Path, *args: str) -> str:
     return p.stdout.strip()
 
 
-def build(source: Path, dest: Path) -> dict[str, str]:
+def snapshot_demo(source: Path, dest: Path) -> None:
+    """Make `dest`'s demo/ equal to the working tree's, as one commit (for uncommitted demo edits)."""
+    shutil.rmtree(dest / "demo")
+    shutil.copytree(
+        source / "demo", dest / "demo", ignore=shutil.ignore_patterns("node_modules", "dist")
+    )
+    git(dest, "add", "-A")
+    if git(dest, "status", "--porcelain"):
+        git(dest, "commit", "-q", "-m", "Snapshot of the working tree demo")
+
+
+def build(source: Path, dest: Path, snapshot: bool = False) -> dict[str, str]:
     if dest.exists():
         raise RuntimeError(f"{dest} already exists")
     subprocess.run(
         ["git", "clone", "--quiet", "--no-hardlinks", str(source), str(dest)], check=True
     )
+    if snapshot:
+        snapshot_demo(source, dest)
     shas = {"base": git(dest, "rev-parse", "HEAD")}
     for name, label in HISTORY:
         subject = apply(name, dest)
@@ -174,6 +258,7 @@ def build(source: Path, dest: Path) -> dict[str, str]:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 4 or sys.argv[1] != "build":
+    args = [a for a in sys.argv[1:] if a != "--snapshot"]
+    if len(args) != 3 or args[0] != "build":
         sys.exit(__doc__)
-    print(json.dumps(build(Path(sys.argv[2]), Path(sys.argv[3])), indent=1))
+    print(json.dumps(build(Path(args[1]), Path(args[2]), "--snapshot" in sys.argv), indent=1))

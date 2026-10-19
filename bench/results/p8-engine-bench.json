@@ -1,0 +1,66 @@
+{
+ "compute_1000_traces_demo_index_5_symbols": {
+  "build_forest_ms": 81.0,
+  "map+timing+aggregate_ms": 164.4,
+  "total_ms_per_1000_traces": 245.4,
+  "spans_per_second": 110011,
+  "top_contributor": "demo/src/orders.ts:createOrder"
+ },
+ "compute_1000_traces_typeorm_sized_index_6k_symbols": {
+  "build_forest_ms": 62.0,
+  "map+timing+aggregate_ms": 116.5,
+  "total_ms_per_1000_traces": 178.6,
+  "spans_per_second": 151200,
+  "top_contributor": "demo/src/orders.ts:createOrder"
+ },
+ "dataset": {
+  "traces": 40000,
+  "spans": 1080000,
+  "load_seconds": 16.8
+ },
+ "table": {
+  "rows": 1080000,
+  "compressed_mb": 22.6,
+  "bytes_per_span_compressed": 21.0
+ },
+ "fetch_server_spans_limit_1000": {
+  "p50_ms": 17.23,
+  "p95_ms": 21.09,
+  "n": 20,
+  "rows": 1000
+ },
+ "fetch_traces_500_traces_13.5k_spans": {
+  "p50_ms": 125.36,
+  "p95_ms": 222.78,
+  "n": 10,
+  "spans": 13500
+ },
+ "analyze_endpoint_1000_requests_end_to_end": {
+  "p50_ms": 772.75,
+  "p95_ms": 799.87,
+  "n": 5,
+  "requests": 1000,
+  "top": "demo/src/orders.ts:createOrder"
+ },
+ "trace_by_id_bloom_index_time_bounded": {
+  "p50_ms": 18.65,
+  "p95_ms": 22.3,
+  "n": 200
+ },
+ "trace_by_id_bloom_index_unbounded": {
+  "p50_ms": 16.01,
+  "p95_ms": 18.74,
+  "n": 200
+ },
+ "trace_by_id_projection_unbounded": {
+  "p50_ms": 11.1,
+  "p95_ms": 13.24,
+  "n": 200
+ },
+ "projection_storage": {
+  "projection_mb": 24.9,
+  "base_table_mb": 22.6,
+  "overhead_pct": 110,
+  "planner_uses_projection": true
+ }
+}

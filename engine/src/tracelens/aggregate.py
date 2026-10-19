@@ -20,6 +20,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from tracelens.mapping import Mapping, MemorySymbolIndex, SymbolRef, map_span
+from tracelens.sqlfp import describe
 from tracelens.stats import percentile
 from tracelens.timing import analyze
 from tracelens.tree import Forest, Node
@@ -94,6 +95,20 @@ def _targets(
     return out
 
 
+@dataclass(frozen=True, slots=True)
+class SqlCall:
+    """One database call inside a request."""
+
+    fingerprint: str
+    normalized: str
+    duration_ns: int
+    symbol: (
+        str | None
+    )  # nearest mapped symbol of the span that issued it (the "repository function")
+    span_id: str
+    statement: str  # raw text as sent (parameters, not values: kept for EXPLAIN)
+
+
 @dataclass(slots=True)
 class RequestAttribution:
     """One request's latency attributed to symbols (the unit regression detection tests on)."""
@@ -108,6 +123,23 @@ class RequestAttribution:
     issues: Counter[str]
     versions: dict[str, set[str]]  # service -> versions of the services touched by this request
     trace_id: str = ""
+    sql: list[SqlCall] = field(default_factory=list)
+
+
+def _sql_calls(root: Node, tgt: dict[str, tuple[str | None, str | None]]) -> list[SqlCall]:
+    out: list[SqlCall] = []
+    stack = [root]
+    while stack:
+        n = stack.pop()
+        sp = n.span
+        if sp.db_statement:
+            fp, text = describe(sp.db_statement)
+            out.append(
+                SqlCall(fp, text, sp.duration_ns, tgt[sp.span_id][0], sp.span_id, sp.db_statement)
+            )
+        stack.extend(n.children)
+    out.sort(key=lambda c: c.span_id)  # traversal order must not depend on child order
+    return out
 
 
 def attribute_request(
@@ -152,6 +184,7 @@ def attribute_request(
         issues=Counter(rq.forest.issues),
         versions=dict(versions),
         trace_id=rq.root.span.trace_id,
+        sql=_sql_calls(rq.root, tgt),
     )
 
 

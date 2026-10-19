@@ -1,0 +1,409 @@
+{
+  "commitsInRange": 3,
+  "controls": [
+    "orders POST /orders"
+  ],
+  "environmentFactor": 2.0,
+  "errors": [
+    {
+      "count": 5,
+      "endpoint": "POST /orders",
+      "exampleTraceIds": [
+        "00000000000000000000000000000001",
+        "00000000000000000000000000000002",
+        "00000000000000000000000000000003"
+      ],
+      "exceptionType": "Error",
+      "fingerprint": "5863dc39d8e5a0bf",
+      "mappingMethod": "function_name",
+      "message": "bad qty 1",
+      "service": "orders",
+      "topFrame": {
+        "file": "/app/src/orders.js",
+        "line": 35,
+        "symbol": "createOrder"
+      }
+    }
+  ],
+  "evidence": [
+    {
+      "generatedAt": "2026-10-03T00:00:00Z",
+      "id": "evd_orders_post_orders_1_0_0_to_1_1_0",
+      "items": [
+        {
+          "confidence": 1.0,
+          "data": {
+            "after": {
+              "count": 200,
+              "p50Ms": 24.175,
+              "p95Ms": 28.969,
+              "p99Ms": 31.005
+            },
+            "before": {
+              "count": 200,
+              "p50Ms": 20.79,
+              "p95Ms": 28.699,
+              "p99Ms": 33.099
+            },
+            "commonLanguageEffect": 0.7529,
+            "controlNormalization": {
+              "controls": [
+                "POST /orders"
+              ],
+              "shiftFactor": 2.0
+            },
+            "effectSize": 0.5058,
+            "notes": [
+              "environment shift 2.33x outside [0.5, 2.0]: clamped, unreliable",
+              "range changes non-source files (SQL/config) that cannot be tied to symbols",
+              "raw (not control-normalized) after-deploy p50 48.35 ms vs before 20.79 ms"
+            ],
+            "p95DeltaPct": 0.94,
+            "pValue": 1.06473e-18,
+            "rawPValue": 2.64305e-67,
+            "target": "POST /orders",
+            "test": "mann_whitney_u"
+          },
+          "id": "ev_latency_orders_post_orders",
+          "links": {
+            "codeLocations": [
+              {
+                "file": "src/orders.ts",
+                "line": 30,
+                "symbol": "createOrder"
+              }
+            ],
+            "commitShas": [
+              "222222222222"
+            ],
+            "queryFingerprints": [
+              "9f1213fdf35b54d5"
+            ],
+            "relatedEvidenceIds": [
+              "ev_attr_orders_post_orders_1",
+              "ev_sql_orders_post_orders_9f1213fdf35b54d5",
+              "ev_commit_2222222_orders_post_orders"
+            ],
+            "traceIds": [
+              "0000000000000000000000000002a4c6",
+              "00000000000000000000000000029819",
+              "000000000000000000000000000295a6"
+            ]
+          },
+          "type": "latency_regression"
+        },
+        {
+          "confidence": 0.99,
+          "data": {
+            "criticalTimeAfterMs": 19.529,
+            "criticalTimeBeforeMs": 16.533,
+            "mappingConfidence": 0.99,
+            "mappingMethod": "semconv",
+            "onCriticalPath": true,
+            "selfTimeAfterMs": 17.576,
+            "selfTimeBeforeMs": 14.88,
+            "shareOfIncrease": 1.0,
+            "symbol": "src/orders.ts:createOrder"
+          },
+          "id": "ev_attr_orders_post_orders_1",
+          "links": {
+            "codeLocations": [
+              {
+                "file": "src/orders.ts",
+                "line": 30,
+                "symbol": "createOrder"
+              }
+            ],
+            "relatedEvidenceIds": [
+              "ev_latency_orders_post_orders"
+            ]
+          },
+          "type": "span_attribution"
+        },
+        {
+          "confidence": 1.0,
+          "data": {
+            "after": {
+              "count": 200,
+              "p50Ms": 14.606,
+              "p95Ms": 20.265,
+              "p99Ms": 21.855
+            },
+            "before": {
+              "count": 200,
+              "p50Ms": 1.503,
+              "p95Ms": 2.179,
+              "p99Ms": 2.337
+            },
+            "callCountAfter": 1.0,
+            "callCountBefore": 1.0,
+            "changeKind": "slower",
+            "fingerprint": "9f1213fdf35b54d5",
+            "normalizedQuery": "select id, sku from orders.orders where user_id = ? order by created_at desc limit ?",
+            "pValue": 4.83086e-67
+          },
+          "id": "ev_sql_orders_post_orders_9f1213fdf35b54d5",
+          "links": {
+            "codeLocations": [
+              {
+                "file": "src/orders.ts",
+                "line": 14,
+                "symbol": "findOrdersByUser"
+              }
+            ],
+            "queryFingerprints": [
+              "9f1213fdf35b54d5"
+            ],
+            "relatedEvidenceIds": [
+              "ev_latency_orders_post_orders",
+              "ev_attr_orders_post_orders_1"
+            ],
+            "traceIds": [
+              "00000000000000000000000000025f38",
+              "000000000000000000000000000253c9",
+              "00000000000000000000000000025ad5"
+            ]
+          },
+          "type": "sql_change"
+        },
+        {
+          "confidence": 0.95,
+          "data": {
+            "author": "Ada",
+            "changedSymbols": [],
+            "committedAt": "2026-10-02T09:00:00Z",
+            "otherFiles": [
+              "demo/db/migrations/002_drop_user_idx.sql"
+            ],
+            "rank": 1,
+            "reasons": [
+              "drop index orders_user_id_idx (demo/db/migrations/002_drop_user_idx.sql:1) on orders.orders, read by query 9f1213fdf35b54d5 which accounts for 100% of the latency increase"
+            ],
+            "schemaChanges": [
+              {
+                "file": "demo/db/migrations/002_drop_user_idx.sql",
+                "kind": "drop_index",
+                "line": 1,
+                "object": "orders_user_id_idx",
+                "table": "orders.orders"
+              }
+            ],
+            "score": 1.0,
+            "sha": "222222222222",
+            "subject": "drop the user index"
+          },
+          "id": "ev_commit_2222222_orders_post_orders",
+          "links": {
+            "codeLocations": [
+              {
+                "file": "demo/db/migrations/002_drop_user_idx.sql",
+                "line": 1
+              }
+            ],
+            "commitShas": [
+              "222222222222"
+            ],
+            "relatedEvidenceIds": [
+              "ev_sql_orders_post_orders_9f1213fdf35b54d5"
+            ]
+          },
+          "type": "commit_change"
+        }
+      ],
+      "schemaVersion": "1.2.0",
+      "subject": {
+        "baselineDeployment": {
+          "commitSha": "aaaaaaaaaaaa",
+          "version": "1.0.0"
+        },
+        "currentDeployment": {
+          "commitSha": "bbbbbbbbbbbb",
+          "version": "1.1.0"
+        },
+        "endpoint": "POST /orders",
+        "service": "orders"
+      }
+    },
+    {
+      "generatedAt": "2026-10-03T00:00:00Z",
+      "id": "evd_orders_post_orders_errors_1_0_0_to_1_1_0",
+      "items": [
+        {
+          "confidence": 0.3,
+          "data": {
+            "baselineCount": 0,
+            "count": 5,
+            "exceptionType": "Error",
+            "fingerprint": "5863dc39d8e5a0bf",
+            "frames": [
+              {
+                "file": "/app/src/orders.js",
+                "line": 35
+              }
+            ],
+            "isNewInDeployment": true,
+            "mappingMethod": "function_name",
+            "message": "bad qty 1",
+            "topFrame": {
+              "file": "/app/src/orders.js",
+              "line": 35,
+              "symbol": "createOrder"
+            }
+          },
+          "id": "ev_error_5863dc39d8e5a0bf",
+          "links": {
+            "codeLocations": [
+              {
+                "file": "/app/src/orders.js",
+                "line": 35,
+                "symbol": "createOrder"
+              }
+            ],
+            "commitShas": [
+              "444444444444"
+            ],
+            "relatedEvidenceIds": [
+              "ev_commit_4444444_orders_post_orders_errors_5863dc39"
+            ],
+            "traceIds": [
+              "00000000000000000000000000000001",
+              "00000000000000000000000000000002",
+              "00000000000000000000000000000003"
+            ]
+          },
+          "type": "error_group"
+        },
+        {
+          "confidence": 0.95,
+          "data": {
+            "author": "Ada",
+            "changedSymbols": [
+              "src/orders.ts:createOrder"
+            ],
+            "committedAt": "2026-10-02T09:00:00Z",
+            "rank": 1,
+            "reasons": [
+              "modified src/orders.ts:createOrder, which accounts for 100% of the latency increase"
+            ],
+            "score": 1.0,
+            "sha": "444444444444",
+            "subject": "validate qty"
+          },
+          "id": "ev_commit_4444444_orders_post_orders_errors_5863dc39",
+          "links": {
+            "codeLocations": [
+              {
+                "file": "src/orders.ts",
+                "line": 30,
+                "symbol": "createOrder"
+              }
+            ],
+            "commitShas": [
+              "444444444444"
+            ],
+            "relatedEvidenceIds": [
+              "ev_error_5863dc39d8e5a0bf"
+            ]
+          },
+          "type": "commit_change"
+        }
+      ],
+      "schemaVersion": "1.2.0",
+      "subject": {
+        "baselineDeployment": {
+          "commitSha": "aaaaaaaaaaaa",
+          "version": "1.0.0"
+        },
+        "currentDeployment": {
+          "commitSha": "bbbbbbbbbbbb",
+          "version": "1.1.0"
+        },
+        "endpoint": "POST /orders",
+        "service": "orders"
+      }
+    }
+  ],
+  "new": {
+    "commitSha": "bbbbbbbbbbbb",
+    "deployedAt": null,
+    "version": "1.1.0"
+  },
+  "notes": [
+    "a note"
+  ],
+  "old": {
+    "commitSha": "aaaaaaaaaaaa",
+    "deployedAt": null,
+    "version": "1.0.0"
+  },
+  "results": [
+    {
+      "effectSize": 0.5058499999999999,
+      "exampleTraceIds": [
+        "0000000000000000000000000002a4c6",
+        "00000000000000000000000000029819",
+        "000000000000000000000000000295a6"
+      ],
+      "method": "POST",
+      "nAfter": 200,
+      "nBefore": 200,
+      "notes": [],
+      "p50AfterMs": 24.1746815,
+      "p50BeforeMs": 20.789523000000003,
+      "p95AfterMs": 28.969190149999996,
+      "p95BeforeMs": 28.698569,
+      "pAdj": 1.064732701084371e-18,
+      "route": "/orders",
+      "service": "orders",
+      "status": "regression",
+      "symbols": [
+        {
+          "deltaMeanMs": 2.9962862424999983,
+          "flagged": true,
+          "key": "src/orders.ts:createOrder",
+          "location": {
+            "file": "src/orders.ts",
+            "line": 30,
+            "symbol": "createOrder"
+          },
+          "name": "createOrder",
+          "shareOfIncrease": 1.0
+        }
+      ]
+    }
+  ],
+  "service": "orders",
+  "sql": [
+    {
+      "callsAfter": 1.0,
+      "callsBefore": 1.0,
+      "deltaMsPerRequest": 13.3481612475,
+      "endpoint": "POST /orders",
+      "exampleTraceIds": [
+        "00000000000000000000000000025f38",
+        "000000000000000000000000000253c9",
+        "00000000000000000000000000025ad5"
+      ],
+      "fingerprint": "9f1213fdf35b54d5",
+      "flagged": true,
+      "issuingSymbols": [
+        "src/orders.ts:createOrder"
+      ],
+      "kind": "slower",
+      "normalized": "select id, sku from orders.orders where user_id = ? order by created_at desc limit ?",
+      "pAdj": 4.830856390397669e-67,
+      "perCallP50AfterMs": 14.605610500000001,
+      "perCallP50BeforeMs": 1.502936,
+      "plan": null,
+      "seqScans": [],
+      "service": "orders",
+      "sites": [
+        {
+          "file": "demo/src/orders.ts",
+          "line": 28,
+          "symbol": "findOrdersByUser"
+        }
+      ]
+    }
+  ]
+}

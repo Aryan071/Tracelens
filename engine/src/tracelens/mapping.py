@@ -138,6 +138,7 @@ class MemorySymbolIndex:
     routes: list[RouteRef] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        self.span_cache: dict[tuple[object, ...], Mapping] = {}  # see map_span
         self._by_path: dict[str, list[SymbolRef]] = defaultdict(list)
         self._by_name: dict[str, list[SymbolRef]] = defaultdict(list)
         self._by_qname: dict[str, list[SymbolRef]] = defaultdict(list)
@@ -371,14 +372,40 @@ def _map_fuzzy(span: Span, idx: MemorySymbolIndex) -> Mapping | None:
     return Mapping(best, "fuzzy_name", round(conf, 4), f"name similarity {score:.2f}")
 
 
+_CACHE_MAX = 20_000  # distinct span "shapes" per index; instrumentation can put ids in names
+
+
 def map_span(span: Span, idx: MemorySymbolIndex, inherited_method: str = "") -> Mapping:
-    """First tier that yields a symbol wins: semconv > route > fuzzy name."""
-    return (
+    """First tier that yields a symbol wins: semconv > route > fuzzy name.
+
+    The result depends only on the span's naming fields, never on its timing or ids, and a service
+    emits a few dozen distinct shapes millions of times, so it is memoized per index (the
+    dominant cost of attributing a request before this was mapping the same spans again)."""
+    key = (
+        span.name,
+        span.kind,
+        span.service,
+        span.code_function,
+        span.code_filepath,
+        span.code_lineno,
+        span.http_route,
+        span.http_method,
+        inherited_method,
+    )
+    cache = idx.span_cache
+    hit = cache.get(key)
+    if hit is not None:
+        return hit
+    m = (
         _map_semconv(span, idx)
         or _map_route(span, idx, inherited_method)
         or _map_fuzzy(span, idx)
         or UNMAPPED
     )
+    if len(cache) >= _CACHE_MAX:
+        cache.clear()
+    cache[key] = m
+    return m
 
 
 def map_forest(forest: Forest, idx: MemorySymbolIndex) -> dict[str, Mapping]:

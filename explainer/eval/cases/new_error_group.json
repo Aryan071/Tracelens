@@ -1,0 +1,138 @@
+{
+  "description": "A new exception appears in createOrder in the new deployment; one commit changed that function.",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_post_orders_errors_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 0.48,
+        "data": {
+          "baselineCount": 0,
+          "count": 8,
+          "exceptionType": "Error",
+          "fingerprint": "2e41f462aaacd51b",
+          "frames": [
+            {
+              "file": "/app/demo/src/orders.js",
+              "line": 35
+            }
+          ],
+          "isNewInDeployment": true,
+          "mappingMethod": "function_name",
+          "message": "order total 1 exceeds the payment limit",
+          "topFrame": {
+            "file": "/app/demo/src/orders.js",
+            "line": 35,
+            "symbol": "createOrder"
+          }
+        },
+        "id": "ev_error_2e41f462aaacd51b",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "/app/demo/src/orders.js",
+              "line": 35,
+              "symbol": "createOrder"
+            }
+          ],
+          "commitShas": [
+            "aaaaaaaaaaaa"
+          ],
+          "relatedEvidenceIds": [
+            "ev_commit_aaaaaaa_orders_post_orders_errors_2e41f462"
+          ],
+          "traceIds": [
+            "00000000000000000000000000000001",
+            "00000000000000000000000000000002",
+            "00000000000000000000000000000003"
+          ]
+        },
+        "type": "error_group"
+      },
+      {
+        "confidence": 0.95,
+        "data": {
+          "author": "Ada",
+          "changedSymbols": [
+            "demo/src/orders.ts:createOrder"
+          ],
+          "committedAt": "2026-10-02T09:00:00Z",
+          "rank": 1,
+          "reasons": [
+            "modified demo/src/orders.ts:createOrder, which accounts for 100% of the latency increase"
+          ],
+          "score": 1.0,
+          "sha": "aaaaaaaaaaaa",
+          "subject": "Reject orders above the payment limit"
+        },
+        "id": "ev_commit_aaaaaaa_orders_post_orders_errors_2e41f462",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "commitShas": [
+            "aaaaaaaaaaaa"
+          ],
+          "relatedEvidenceIds": [
+            "ev_error_2e41f462aaacd51b"
+          ]
+        },
+        "type": "commit_change"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "POST /orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "error"
+      ],
+      "point": "error type"
+    },
+    {
+      "any": [
+        "exceeds the payment limit"
+      ],
+      "point": "message"
+    },
+    {
+      "any": [
+        "createOrder"
+      ],
+      "point": "function"
+    },
+    {
+      "any": [
+        "aaaaaaa",
+        "payment limit"
+      ],
+      "point": "commit"
+    },
+    {
+      "any": [
+        "new in this deployment",
+        "new",
+        "did not occur before",
+        "absent"
+      ],
+      "point": "new in this deployment"
+    }
+  ],
+  "name": "new_error_group"
+}

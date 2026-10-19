@@ -126,6 +126,9 @@ class Comparison:
     dropped_warmup: int
     same_commit: bool
     config: DetectionConfig
+    usable: dict[EndpointKey, tuple[Group, Group]] = field(
+        default_factory=dict
+    )  # after warmup trim
 
 
 @dataclass(slots=True)
@@ -302,7 +305,7 @@ def compare_versions(
         warnings.append(
             f"dropped {dropped} warmup requests from the new version (first {cfg.warmup_s:g}s)"
         )
-    return Comparison(results, shift, controls, warnings, dropped, same_commit, cfg)
+    return Comparison(results, shift, controls, warnings, dropped, same_commit, cfg, dict(usable))
 
 
 def _insufficient(ep: EndpointKey, old: Group, new: Group, cfg: DetectionConfig) -> EndpointResult:

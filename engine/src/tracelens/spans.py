@@ -5,7 +5,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-@dataclass(frozen=True, slots=True)
+# Treated as immutable (nothing assigns to a span) but deliberately not `frozen=True`: a frozen
+# dataclass builds each instance with one object.__setattr__ per field, 5x slower (2.1 us vs 0.4 us
+# for these 17 fields), and 87k spans are built per deployment comparison. `unsafe_hash` keeps spans
+# hashable as before.
+@dataclass(slots=True, unsafe_hash=True)
 class Span:
     trace_id: str
     span_id: str
@@ -23,6 +27,7 @@ class Span:
     http_method: str = ""
     db_system: str = ""
     version: str = ""  # service.version of the emitting service (resource attribute)
+    db_statement: str = ""  # db.query.text / db.statement ('' = not a database call)
 
     @property
     def duration_ns(self) -> int:

@@ -2,6 +2,7 @@ name: ci
 on:
   push: { branches: [main] }
   pull_request:
+  workflow_dispatch:
 
 jobs:
   schema:
@@ -15,12 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with: { enable-cache: true }
-      - run: uv sync --frozen
-      - run: uv run ruff check . && uv run ruff format --check .
-      - run: uv run mypy engine/src engine/tests
-      - run: uv run pytest engine
+      - run: make check   # ruff, ruff format, mypy --strict and the unit tests of every Python package
 
   integration:
     runs-on: ubuntu-latest
@@ -42,6 +38,16 @@ jobs:
         run: npm run typecheck --workspaces --if-present
       - run: npm test --workspaces --if-present
 
+  extension-in-vscode:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: npm }
+      - run: npm ci
+      - name: Tests inside a real VS Code (stub API serving the API's golden responses)
+        run: xvfb-run -a npm run test:vscode -w extension
+
   compose-smoke:
     runs-on: ubuntu-latest
     steps:
@@ -51,3 +57,17 @@ jobs:
       - run: scripts/smoke.sh
       - if: failure()
         run: docker compose logs --tail=200
+
+  # Deploys scripted bad versions of the demo and asserts TraceLens names the right endpoint, query,
+  # commit and file:line (docs/BENCHMARKS.md). About 20 minutes, so not run on pull requests.
+  e2e:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: scripts/e2e_phase4.sh
+      - run: scripts/e2e_phase5.sh
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with: { name: e2e-reports, path: ".tmp/e2e*/report*.txt" }

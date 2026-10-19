@@ -124,7 +124,7 @@
       "type": "commit_change"
     }
   ],
-  "schemaVersion": "1.1.0",
+  "schemaVersion": "1.2.0",
   "subject": {
     "baselineDeployment": {
       "commitSha": "aaaaaaaaaaaa",

@@ -1,0 +1,210 @@
+{
+  "description": "Two commits change the same hot function: statically indistinguishable, so the evidence flags them as ambiguous.",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_post_orders_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 42.701,
+            "p95Ms": 50.633,
+            "p99Ms": 53.21
+          },
+          "before": {
+            "count": 200,
+            "p50Ms": 16.274,
+            "p95Ms": 24.929,
+            "p99Ms": 29.087
+          },
+          "commonLanguageEffect": 1.0,
+          "controlNormalization": {
+            "controls": [
+              "GET /users/:userId/orders",
+              "POST /reserve"
+            ],
+            "shiftFactor": 0.9886
+          },
+          "effectSize": 1.0,
+          "notes": [
+            "raw (not control-normalized) after-deploy p50 42.21 ms vs before 16.27 ms"
+          ],
+          "p95DeltaPct": 103.11,
+          "pValue": 7.24628e-67,
+          "rawPValue": 7.24628e-67,
+          "target": "POST /orders",
+          "test": "mann_whitney_u"
+        },
+        "id": "ev_latency_orders_post_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "commitShas": [
+            "999999999999",
+            "888888888888"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_post_orders_1",
+            "ev_commit_9999999_orders_post_orders",
+            "ev_commit_8888888_orders_post_orders"
+          ],
+          "traceIds": [
+            "0000000000000000000000000002857a",
+            "0000000000000000000000000002598f",
+            "00000000000000000000000000025d78"
+          ]
+        },
+        "type": "latency_regression"
+      },
+      {
+        "confidence": 0.99,
+        "data": {
+          "criticalTimeAfterMs": 36.524,
+          "criticalTimeBeforeMs": 14.388,
+          "mappingConfidence": 0.99,
+          "mappingMethod": "semconv",
+          "onCriticalPath": true,
+          "selfTimeAfterMs": 32.872,
+          "selfTimeBeforeMs": 12.949,
+          "shareOfIncrease": 1.0,
+          "symbol": "demo/src/orders.ts:createOrder"
+        },
+        "id": "ev_attr_orders_post_orders_1",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_post_orders"
+          ]
+        },
+        "type": "span_attribution"
+      },
+      {
+        "confidence": 0.665,
+        "data": {
+          "ambiguousWith": [
+            "888888888888"
+          ],
+          "author": "Ada",
+          "changedSymbols": [
+            "demo/src/orders.ts:createOrder"
+          ],
+          "committedAt": "2026-10-02T09:00:00Z",
+          "rank": 1,
+          "reasons": [
+            "modified demo/src/orders.ts:createOrder, which accounts for 100% of the latency increase"
+          ],
+          "score": 1.0,
+          "sha": "999999999999",
+          "subject": "Log order totals"
+        },
+        "id": "ev_commit_9999999_orders_post_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "commitShas": [
+            "999999999999"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_post_orders_1"
+          ]
+        },
+        "type": "commit_change"
+      },
+      {
+        "confidence": 0.665,
+        "data": {
+          "ambiguousWith": [
+            "999999999999"
+          ],
+          "author": "Ada",
+          "changedSymbols": [
+            "demo/src/orders.ts:createOrder"
+          ],
+          "committedAt": "2026-10-02T09:00:00Z",
+          "rank": 2,
+          "reasons": [
+            "modified demo/src/orders.ts:createOrder, which accounts for 100% of the latency increase"
+          ],
+          "score": 1.0,
+          "sha": "888888888888",
+          "subject": "Validate stock before charging"
+        },
+        "id": "ev_commit_8888888_orders_post_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "commitShas": [
+            "888888888888"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_post_orders_1"
+          ]
+        },
+        "type": "commit_change"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "POST /orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "POST /orders"
+      ],
+      "point": "endpoint"
+    },
+    {
+      "any": [
+        "ambiguous",
+        "cannot be told apart",
+        "indistinguishable",
+        "either",
+        "two commits",
+        "other commit"
+      ],
+      "point": "hedges about the two suspects"
+    },
+    {
+      "any": [
+        "8888888",
+        "9999999"
+      ],
+      "point": "names a suspect"
+    }
+  ],
+  "name": "ambiguous_commits"
+}

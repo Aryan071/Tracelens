@@ -147,3 +147,30 @@ def diff_raw(repo: str, parent: str, commit: str) -> list[RawDiff]:
 
 def zero_blob(blob: str) -> bool:
     return blob == _ZERO
+
+
+MAX_PATCH_BYTES = 200_000
+
+
+def show_patch(repo: str, sha: str, path: str | None = None) -> tuple[str, bool]:
+    """Unified diff of a commit against its first parent (a root commit against the empty tree), or
+    of one path. Returns (text, truncated) with the text capped at MAX_PATCH_BYTES."""
+    args = ["show", "--format=", "--first-parent", "-p", "-M", sha]
+    if path is not None:
+        args += ["--", path]
+    out = _run(repo, *args)
+    return out[:MAX_PATCH_BYTES].decode("utf8", "replace"), len(out) > MAX_PATCH_BYTES
+
+
+def show_file(repo: str, sha: str, path: str) -> bytes:
+    """File content at a commit. Raises GitError if the path does not exist there."""
+    return _run(repo, "show", f"{sha}:{path}")
+
+
+EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"  # git's built-in empty tree
+
+
+def changed_files(repo: str, sha: str) -> list[RawDiff]:
+    """Files a commit changed against its first parent (against the empty tree for a root)."""
+    info = commit_info(repo, sha)
+    return diff_raw(repo, info.parents[0] if info.parents else EMPTY_TREE, sha)

@@ -13,16 +13,20 @@ increase:
 Commits are scored by the sum over their changed symbols of the best such credit, capped at 1.0.
 Honest limit: two commits that change the same hot symbol are statically indistinguishable; they
 receive the same score and name each other in `ambiguous_with` instead of pretending to order them.
-Non-source changes (SQL, config) are reported, never scored (that is Phase 5's SQL correlation).
+A schema change (a `.sql` file adding DROP INDEX, ALTER TABLE...) earns credit through the queries
+it can affect: `SchemaLink` (built by sqlcorr.py) carries the share of the latency increase that a
+regressed query accounts for, times a factor for how directly that kind of change slows reads.
+Other non-source changes (config...) are reported, never scored.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 
 from tracelens.commits import CommitChange
+from tracelens.ddl import DdlEvent
 
 CHANGE_FACTOR = {"modified": 1.0, "added": 1.0, "removed": 0.3}
 NEIGHBOR_FACTOR = 0.35
@@ -39,6 +43,18 @@ class Credit:
     credit: float
 
 
+@dataclass(frozen=True, slots=True)
+class SchemaLink:
+    """A DDL statement of a commit that touches a table read by a regressed query."""
+
+    event: DdlEvent
+    table: str
+    fingerprint: str
+    share: float  # that query's share of the endpoint's latency increase
+    credit: float
+    reason: str
+
+
 @dataclass(slots=True)
 class RankedCommit:
     change: CommitChange
@@ -47,22 +63,26 @@ class RankedCommit:
     credits: list[Credit]
     reasons: list[str]
     ambiguous_with: list[str] = field(default_factory=list)
+    schema_credits: list[SchemaLink] = field(default_factory=list)
 
 
 def rank_commits(
     commits: list[CommitChange],
     shares: Mapping[str, float],
     callees: Mapping[str, set[str]] | None = None,
+    schema_links: Mapping[str, Sequence[SchemaLink]] | None = None,
 ) -> list[RankedCommit]:
     """`shares`: regressed symbol key -> share of the latency increase (sums to ~1).
-    `callees`: call graph at the new commit, caller key -> callee keys (optional)."""
+    `callees`: call graph at the new commit, caller key -> callee keys (optional).
+    `schema_links`: commit sha -> schema changes that explain a regressed query (optional)."""
     callees = callees or {}
+    schema_links = schema_links or {}
     callers: dict[str, set[str]] = defaultdict(set)
     for caller, cs in callees.items():
         for c in cs:
             callers[c].add(caller)
 
-    scored: list[tuple[CommitChange, float, list[Credit]]] = []
+    scored: list[tuple[CommitChange, float, list[Credit], list[SchemaLink]]] = []
     for commit in commits:
         best: dict[str, Credit] = {}
         for sc in commit.symbols:
@@ -86,18 +106,24 @@ def rank_commits(
                 if sc.key not in best or top.credit > best[sc.key].credit:
                     best[sc.key] = top
         credits = sorted(best.values(), key=lambda c: (-c.credit, c.changed))
-        scored.append((commit, min(1.0, sum(c.credit for c in credits)), credits))
+        links = sorted(
+            schema_links.get(commit.sha, ()), key=lambda link: (-link.credit, link.event.line)
+        )
+        total = sum(c.credit for c in credits) + sum(link.credit for link in links)
+        scored.append((commit, min(1.0, total), credits, links))
 
     # order: score, then explained-symbol count, then newest first (stable, documented tie-break)
     order = sorted(
         range(len(scored)),
-        key=lambda i: (-scored[i][1], -len(scored[i][2]), -i),
+        key=lambda i: (-scored[i][1], -(len(scored[i][2]) + len(scored[i][3])), -i),
     )
     ranked: list[RankedCommit] = []
     for pos, i in enumerate(order, start=1):
-        commit, score, credits = scored[i]
+        commit, score, credits, links = scored[i]
         ranked.append(
-            RankedCommit(commit, pos, round(score, 6), credits, _reasons(commit, credits))
+            RankedCommit(
+                commit, pos, round(score, 6), credits, _reasons(commit, credits, links), [], links
+            )
         )
     for r in ranked:
         if r.score > 0:
@@ -109,8 +135,8 @@ def rank_commits(
     return ranked
 
 
-def _reasons(commit: CommitChange, credits: list[Credit]) -> list[str]:
-    out: list[str] = []
+def _reasons(commit: CommitChange, credits: list[Credit], links: list[SchemaLink]) -> list[str]:
+    out: list[str] = [link.reason for link in links]
     for c in credits:
         pct = f"{c.share:.0%}"
         if c.relation == "same":

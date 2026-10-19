@@ -6,26 +6,26 @@
   "threads": 4,
   "spans_per_request": 500,
   "offered_rate": "max",
-  "send_seconds": 151.86,
+  "send_seconds": 41.97,
   "accepted_spans": 1504000,
-  "accepted_spans_per_s": 9904,
-  "inserted_spans_per_s_incl_drain": 9837,
-  "rejected_requests": 4016,
+  "accepted_spans_per_s": 35833,
+  "inserted_spans_per_s_incl_drain": 35611,
+  "rejected_requests": 425,
   "transport_errors": 0,
-  "attempts": 7024,
+  "attempts": 3433,
   "latency_ms": {
-    "p50": 17.26,
-    "p95": 58.88,
-    "p99": 101.96,
-    "mean": 22.77
+    "p50": 47.36,
+    "p95": 227.82,
+    "p99": 350.41,
+    "mean": 72.0
   },
-  "peak_queue_spans": 20000.0,
-  "drain_seconds": 1.03,
+  "peak_queue_spans": 200000.0,
+  "drain_seconds": 0.26,
   "server_received_spans": 1504000.0,
   "server_inserted_spans": 1504000.0,
   "server_invalid_spans": 0.0,
   "server_lost_spans": 0.0,
-  "service": "bench-ed15fca7",
+  "service": "bench-31a8f014",
   "stored_in_clickhouse": 1504000,
   "unique_spans_in_clickhouse": 1504000,
   "expected_spans": 1504000,
@@ -33,6 +33,6 @@
 }
 
 resource usage during run (docker stats, ~1-2s samples; 100% = one core):
-  tl-bench-load                    cpu avg(busy)     15%  max    231%   peak mem     103 MiB   (77 samples)
-  tracelens-clickhouse-1           cpu avg(busy)     44%  max    344%   peak mem     670 MiB   (67 samples)
-  tracelens-ingest-1               cpu avg(busy)     90%  max    174%   peak mem     379 MiB   (77 samples)
+  tl-bench-load                    cpu avg(busy)     33%  max    102%   peak mem     115 MiB   (25 samples)
+  tracelens-clickhouse-1           cpu avg(busy)    140%  max    266%   peak mem     813 MiB   (15 samples)
+  tracelens-ingest-1               cpu avg(busy)    169%  max    424%   peak mem     824 MiB   (25 samples)

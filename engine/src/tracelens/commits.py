@@ -8,7 +8,9 @@ at both sides with the Phase 2 extractor and symbols are compared by qualified n
   added / removed  the symbol exists on one side only (a renamed symbol appears as removed + added;
             a symbol moved to another file likewise)
 
-Files that cannot be analyzed (SQL, JSON, config...) are listed, never silently ignored.
+Files that cannot be analyzed (SQL, JSON, config...) are listed, never silently ignored. For `.sql`
+files the DDL statements the commit added (DROP INDEX, ALTER TABLE...) are extracted as well, so a
+schema migration can be tied to a slower query (ddl.py, sqlcorr.py).
 """
 
 from __future__ import annotations
@@ -19,6 +21,8 @@ from dataclasses import dataclass
 from tracelens_indexer import git
 from tracelens_indexer.model import Symbol
 from tracelens_indexer.parse import language_for, parse_file
+
+from tracelens.ddl import DdlEvent, added_events
 
 MAX_FILE_BYTES = 1_000_000
 
@@ -46,6 +50,7 @@ class CommitChange:
     is_merge: bool
     symbols: tuple[SymbolChange, ...]
     other_files: tuple[str, ...]  # changed files that are not analyzable source
+    ddl: tuple[DdlEvent, ...] = ()  # schema changes found in the commit's .sql files
 
 
 def _symbol_map(symbols: list[Symbol]) -> dict[tuple[str, int], Symbol]:
@@ -95,15 +100,29 @@ def diff_symbols(
     return sorted(out, key=lambda c: (c.path, c.start_line, c.qualified_name, c.change))
 
 
+def _ddl_events(reader: git.BlobReader, d: git.RawDiff, path: str) -> list[DdlEvent]:
+    def text(blob: str) -> str | None:
+        if git.zero_blob(blob):
+            return None
+        data = reader.read(blob)
+        return data.decode("utf8", "replace") if len(data) <= MAX_FILE_BYTES else None
+
+    new = text(d.new_blob)
+    return added_events(text(d.old_blob), new, path) if new is not None else []
+
+
 def analyze_commit(repo: str, sha: str, parents: list[str], reader: git.BlobReader) -> CommitChange:
     info = git.commit_info(repo, sha)
     changes: list[SymbolChange] = []
     others: list[str] = []
+    ddl: list[DdlEvent] = []
     if parents:
         for d in git.diff_raw(repo, parents[0], sha):
             path = d.new_path if not git.zero_blob(d.new_blob) else d.old_path
             if language_for(path) is None and language_for(d.old_path) is None:
                 others.append(path)
+                if path.endswith(".sql") and not git.zero_blob(d.new_blob):
+                    ddl.extend(_ddl_events(reader, d, path))
                 continue
             old = _parse(reader, d.old_blob, d.old_path)
             new = _parse(reader, d.new_blob, d.new_path)
@@ -116,6 +135,7 @@ def analyze_commit(repo: str, sha: str, parents: list[str], reader: git.BlobRead
         is_merge=len(parents) > 1,
         symbols=tuple(changes),
         other_files=tuple(sorted(others)),
+        ddl=tuple(ddl),
     )
 
 

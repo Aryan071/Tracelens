@@ -4,14 +4,17 @@ version = "0.0.0"
 requires-python = ">=3.12"
 dependencies = [
   "tracelens-engine",
+  "tracelens-explain",
   "fastapi>=0.115",
   "uvicorn>=0.32",
   "psycopg[binary]>=3.2",
   "clickhouse-connect>=0.8",
+  "prometheus-client>=0.21",  # already a dependency of ingest; request metrics
 ]
 
 [tool.uv.sources]
 tracelens-engine = { workspace = true }
+tracelens-explain = { workspace = true }
 
 [build-system]
 requires = ["hatchling"]

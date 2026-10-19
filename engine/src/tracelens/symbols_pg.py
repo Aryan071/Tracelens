@@ -83,3 +83,24 @@ def load_call_graph(dsn: str, *, repo_name: str, sha: str, scope: str = "") -> d
         ):
             graph.setdefault(f"{caller_path}:{caller}", set()).add(f"{callee_path}:{callee}")
     return graph
+
+
+def load_sql_sites(
+    dsn: str, *, repo_name: str, sha: str, scope: str = ""
+) -> list[tuple[str, str | None, int, str]]:
+    """SQL string literals of an indexed commit: (path, enclosing symbol, line, text)."""
+    scope = scope.strip("/")
+    with psycopg.connect(dsn) as conn:
+        rid = store.find_repo(conn, repo_name)
+        if rid is None:
+            raise LookupError(f"repo {repo_name!r} is not indexed")
+        return [
+            (r[0], r[1], r[2], r[3])
+            for r in conn.execute(
+                "SELECT cf.path, s.qualified_name, q.line, q.text FROM commit_files cf"
+                " JOIN blob_sql q ON q.blob_sha = cf.blob_sha"
+                " LEFT JOIN symbols s ON s.blob_sha = q.blob_sha AND s.local_id = q.enclosing_local_id"
+                " WHERE cf.repo_id=%s AND cf.commit_sha=%s AND cf.scope=%s ORDER BY cf.path, q.line",
+                (rid, sha, scope),
+            )
+        ]

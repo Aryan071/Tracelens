@@ -1,6 +1,250 @@
 {
   "components": {
     "schemas": {
+      "ClaimOut": {
+        "properties": {
+          "citations": {
+            "description": "IDs of the Evidence items that support the claim",
+            "items": {
+              "type": "string"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "citations"
+        ],
+        "title": "ClaimOut",
+        "type": "object"
+      },
+      "CodeLoc": {
+        "properties": {
+          "file": {
+            "description": "Repository-relative path, as in the code index",
+            "title": "File",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "symbol": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Symbol"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "CodeLoc",
+        "type": "object"
+      },
+      "CommitFileOut": {
+        "properties": {
+          "oldPath": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Oldpath"
+          },
+          "patch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Unified diff of this file, null for large/binary files",
+            "title": "Patch"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "oldPath",
+          "status",
+          "patch"
+        ],
+        "title": "CommitFileOut",
+        "type": "object"
+      },
+      "CommitOut": {
+        "properties": {
+          "author": {
+            "title": "Author",
+            "type": "string"
+          },
+          "committedAt": {
+            "title": "Committedat",
+            "type": "string"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/CommitFileOut"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "First parent, the left side of a diff; null for a root",
+            "title": "Parent"
+          },
+          "sha": {
+            "title": "Sha",
+            "type": "string"
+          },
+          "subject": {
+            "title": "Subject",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sha",
+          "parent",
+          "subject",
+          "author",
+          "committedAt",
+          "files",
+          "truncated"
+        ],
+        "title": "CommitOut",
+        "type": "object"
+      },
+      "ComparisonOut": {
+        "properties": {
+          "commitsInRange": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsinrange"
+          },
+          "controls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Controls",
+            "type": "array"
+          },
+          "environmentFactor": {
+            "title": "Environmentfactor",
+            "type": "number"
+          },
+          "errors": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorGroupOut"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "evidence": {
+            "description": "Evidence documents (schema/evidence.v1.schema.json), one per regressed endpoint and one per endpoint with new error groups",
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "new": {
+            "$ref": "#/components/schemas/DeploymentRefOut"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "old": {
+            "$ref": "#/components/schemas/DeploymentRefOut"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/EndpointResultOut"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "sql": {
+            "items": {
+              "$ref": "#/components/schemas/SqlChangeOut"
+            },
+            "title": "Sql",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service",
+          "old",
+          "new",
+          "commitsInRange",
+          "environmentFactor",
+          "controls",
+          "results",
+          "sql",
+          "errors",
+          "evidence",
+          "notes"
+        ],
+        "title": "ComparisonOut",
+        "type": "object"
+      },
       "DeploymentIn": {
         "additionalProperties": false,
         "properties": {
@@ -160,6 +404,307 @@
         "title": "DeploymentOut",
         "type": "object"
       },
+      "DeploymentRefOut": {
+        "properties": {
+          "commitSha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commitsha"
+          },
+          "deployedAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deployedat"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "DeploymentRefOut",
+        "type": "object"
+      },
+      "EndpointOut": {
+        "properties": {
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "p50Ms": {
+            "title": "P50Ms",
+            "type": "number"
+          },
+          "p95Ms": {
+            "title": "P95Ms",
+            "type": "number"
+          },
+          "requests": {
+            "title": "Requests",
+            "type": "integer"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          }
+        },
+        "required": [
+          "service",
+          "method",
+          "route",
+          "requests",
+          "p50Ms",
+          "p95Ms"
+        ],
+        "title": "EndpointOut",
+        "type": "object"
+      },
+      "EndpointResultOut": {
+        "properties": {
+          "effectSize": {
+            "title": "Effectsize",
+            "type": "number"
+          },
+          "exampleTraceIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Exampletraceids",
+            "type": "array"
+          },
+          "method": {
+            "title": "Method",
+            "type": "string"
+          },
+          "nAfter": {
+            "title": "Nafter",
+            "type": "integer"
+          },
+          "nBefore": {
+            "title": "Nbefore",
+            "type": "integer"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Notes",
+            "type": "array"
+          },
+          "p50AfterMs": {
+            "title": "P50Afterms",
+            "type": "number"
+          },
+          "p50BeforeMs": {
+            "title": "P50Beforems",
+            "type": "number"
+          },
+          "p95AfterMs": {
+            "title": "P95Afterms",
+            "type": "number"
+          },
+          "p95BeforeMs": {
+            "title": "P95Beforems",
+            "type": "number"
+          },
+          "pAdj": {
+            "title": "Padj",
+            "type": "number"
+          },
+          "route": {
+            "title": "Route",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "status": {
+            "description": "regression | improvement | environmental | ok | insufficient_data",
+            "title": "Status",
+            "type": "string"
+          },
+          "symbols": {
+            "items": {
+              "$ref": "#/components/schemas/SymbolShiftOut"
+            },
+            "title": "Symbols",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service",
+          "method",
+          "route",
+          "status",
+          "nBefore",
+          "nAfter",
+          "p50BeforeMs",
+          "p50AfterMs",
+          "p95BeforeMs",
+          "p95AfterMs",
+          "pAdj",
+          "effectSize",
+          "notes",
+          "symbols",
+          "exampleTraceIds"
+        ],
+        "title": "EndpointResultOut",
+        "type": "object"
+      },
+      "ErrorGroupOut": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "endpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endpoint"
+          },
+          "exampleTraceIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Exampletraceids",
+            "type": "array"
+          },
+          "exceptionType": {
+            "title": "Exceptiontype",
+            "type": "string"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "mappingMethod": {
+            "title": "Mappingmethod",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "topFrame": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeLoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "service",
+          "endpoint",
+          "fingerprint",
+          "exceptionType",
+          "message",
+          "count",
+          "topFrame",
+          "mappingMethod",
+          "exampleTraceIds"
+        ],
+        "title": "ErrorGroupOut",
+        "type": "object"
+      },
+      "ExplanationOut": {
+        "properties": {
+          "attempts": {
+            "description": "Model calls made; 0 when the LLM is disabled",
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "claims": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimOut"
+            },
+            "title": "Claims",
+            "type": "array"
+          },
+          "fallbackReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the deterministic template was used instead of a model",
+            "title": "Fallbackreason"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "rejections": {
+            "description": "Why earlier model answers were rejected",
+            "items": {
+              "type": "string"
+            },
+            "title": "Rejections",
+            "type": "array"
+          },
+          "source": {
+            "description": "llm | template",
+            "title": "Source",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "summary",
+          "claims",
+          "attempts",
+          "rejections"
+        ],
+        "title": "ExplanationOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -171,6 +716,400 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "QueryOut": {
+        "properties": {
+          "changes": {
+            "description": "One entry per endpoint that issues it",
+            "items": {
+              "$ref": "#/components/schemas/SqlChangeOut"
+            },
+            "title": "Changes",
+            "type": "array"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "normalized": {
+            "title": "Normalized",
+            "type": "string"
+          },
+          "sites": {
+            "items": {
+              "$ref": "#/components/schemas/CodeLoc"
+            },
+            "title": "Sites",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fingerprint",
+          "normalized",
+          "sites",
+          "changes"
+        ],
+        "title": "QueryOut",
+        "type": "object"
+      },
+      "SpanOut": {
+        "properties": {
+          "code": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeLoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "criticalMs": {
+            "description": "Time of this span on the trace's critical path",
+            "title": "Criticalms",
+            "type": "number"
+          },
+          "dbStatement": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dbstatement"
+          },
+          "durationMs": {
+            "title": "Durationms",
+            "type": "number"
+          },
+          "exceptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Exceptions",
+            "type": "array"
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "parentId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parentid"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "spanId": {
+            "title": "Spanid",
+            "type": "string"
+          },
+          "startOffsetMs": {
+            "title": "Startoffsetms",
+            "type": "number"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "spanId",
+          "parentId",
+          "service",
+          "name",
+          "kind",
+          "startOffsetMs",
+          "durationMs",
+          "status",
+          "criticalMs",
+          "exceptions"
+        ],
+        "title": "SpanOut",
+        "type": "object"
+      },
+      "SqlChangeOut": {
+        "properties": {
+          "callsAfter": {
+            "title": "Callsafter",
+            "type": "number"
+          },
+          "callsBefore": {
+            "title": "Callsbefore",
+            "type": "number"
+          },
+          "deltaMsPerRequest": {
+            "title": "Deltamsperrequest",
+            "type": "number"
+          },
+          "endpoint": {
+            "title": "Endpoint",
+            "type": "string"
+          },
+          "exampleTraceIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Exampletraceids",
+            "type": "array"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "boolean"
+          },
+          "issuingSymbols": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Issuingsymbols",
+            "type": "array"
+          },
+          "kind": {
+            "description": "slower | more_calls | new",
+            "title": "Kind",
+            "type": "string"
+          },
+          "normalized": {
+            "title": "Normalized",
+            "type": "string"
+          },
+          "pAdj": {
+            "title": "Padj",
+            "type": "number"
+          },
+          "perCallP50AfterMs": {
+            "title": "Percallp50Afterms",
+            "type": "number"
+          },
+          "perCallP50BeforeMs": {
+            "title": "Percallp50Beforems",
+            "type": "number"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Present only when EXPLAIN is configured",
+            "title": "Plan"
+          },
+          "seqScans": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Seqscans",
+            "type": "array"
+          },
+          "service": {
+            "title": "Service",
+            "type": "string"
+          },
+          "sites": {
+            "items": {
+              "$ref": "#/components/schemas/CodeLoc"
+            },
+            "title": "Sites",
+            "type": "array"
+          }
+        },
+        "required": [
+          "service",
+          "endpoint",
+          "fingerprint",
+          "normalized",
+          "kind",
+          "flagged",
+          "deltaMsPerRequest",
+          "callsBefore",
+          "callsAfter",
+          "perCallP50BeforeMs",
+          "perCallP50AfterMs",
+          "pAdj",
+          "sites",
+          "issuingSymbols",
+          "seqScans",
+          "exampleTraceIds"
+        ],
+        "title": "SqlChangeOut",
+        "type": "object"
+      },
+      "SymbolLatencyOut": {
+        "properties": {
+          "deltaPct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Change of p95 critical time; null if no baseline",
+            "title": "Deltapct"
+          },
+          "file": {
+            "title": "File",
+            "type": "string"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "p95AfterMs": {
+            "title": "P95Afterms",
+            "type": "number"
+          },
+          "p95BeforeMs": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P95Beforems"
+          },
+          "requests": {
+            "description": "Requests in the new deployment that spent time here",
+            "title": "Requests",
+            "type": "integer"
+          },
+          "sinceVersion": {
+            "title": "Sinceversion",
+            "type": "string"
+          },
+          "symbol": {
+            "description": "`path:qualifiedName`, the key used throughout Evidence",
+            "title": "Symbol",
+            "type": "string"
+          }
+        },
+        "required": [
+          "symbol",
+          "name",
+          "file",
+          "line",
+          "requests",
+          "p95BeforeMs",
+          "p95AfterMs",
+          "deltaPct",
+          "sinceVersion"
+        ],
+        "title": "SymbolLatencyOut",
+        "type": "object"
+      },
+      "SymbolShiftOut": {
+        "properties": {
+          "deltaMeanMs": {
+            "title": "Deltameanms",
+            "type": "number"
+          },
+          "flagged": {
+            "title": "Flagged",
+            "type": "boolean"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CodeLoc"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "shareOfIncrease": {
+            "title": "Shareofincrease",
+            "type": "number"
+          }
+        },
+        "required": [
+          "key",
+          "deltaMeanMs",
+          "shareOfIncrease",
+          "flagged"
+        ],
+        "title": "SymbolShiftOut",
+        "type": "object"
+      },
+      "TraceOut": {
+        "properties": {
+          "durationMs": {
+            "title": "Durationms",
+            "type": "number"
+          },
+          "spans": {
+            "items": {
+              "$ref": "#/components/schemas/SpanOut"
+            },
+            "title": "Spans",
+            "type": "array"
+          },
+          "traceId": {
+            "title": "Traceid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "traceId",
+          "durationMs",
+          "spans"
+        ],
+        "title": "TraceOut",
         "type": "object"
       },
       "ValidationError": {
@@ -216,12 +1155,135 @@
     }
   },
   "info": {
-    "description": "Deployment tracking (Phase 4); query endpoints arrive in Phase 6.",
+    "description": "Deployment tracking and the read-only query API of the VS Code extension.",
     "title": "TraceLens API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",
   "paths": {
+    "/commits/{sha}": {
+      "get": {
+        "operationId": "get_commit_commits__sha__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sha",
+            "required": true,
+            "schema": {
+              "title": "Sha",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommitOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Unknown commit"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "A commit with the unified diff of each changed file"
+      }
+    },
+    "/comparisons": {
+      "get": {
+        "operationId": "get_comparison_comparisons_get",
+        "parameters": [
+          {
+            "description": "service.name, e.g. orders",
+            "in": "query",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "description": "service.name, e.g. orders",
+              "minLength": 1,
+              "title": "Service",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Baseline version (default: the one before `to`)",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Baseline version (default: the one before `to`)",
+              "title": "From"
+            }
+          },
+          {
+            "description": "Version to analyze (default: the latest deployed)",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version to analyze (default: the latest deployed)",
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComparisonOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Unknown deployment, or nothing indexed for its commit"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compare two deployments of a service: regressions, SQL, errors, Evidence"
+      }
+    },
     "/deployments": {
       "get": {
         "operationId": "get_deployments_deployments_get",
@@ -312,6 +1374,372 @@
           }
         },
         "summary": "Register which commit a service version was built from"
+      }
+    },
+    "/endpoints": {
+      "get": {
+        "operationId": "get_endpoints_endpoints_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "service",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service"
+            }
+          },
+          {
+            "description": "e.g. 15m, 2h",
+            "in": "query",
+            "name": "window",
+            "required": false,
+            "schema": {
+              "default": "15m",
+              "description": "e.g. 15m, 2h",
+              "pattern": "^\\d+[smhd]$",
+              "title": "Window",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/EndpointOut"
+                  },
+                  "title": "Response Get Endpoints Endpoints Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Endpoints seen recently"
+      }
+    },
+    "/explanations": {
+      "post": {
+        "description": "The body is ONE Evidence document, the only thing a model sees. The answer is used only if every claim cites existing item IDs and states no number absent from the items it cites; a rejected answer is retried once, then replaced by a deterministic template, so the endpoint is useful with the LLM disabled (`source` says which).",
+        "operationId": "post_explanation_explanations_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "description": "An Evidence document",
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExplanationOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "413": {
+            "description": "Document too large"
+          },
+          "422": {
+            "description": "Not a valid Evidence document"
+          }
+        },
+        "summary": "Explain an Evidence document in words, every claim citing evidence IDs"
+      }
+    },
+    "/queries/{fingerprint}": {
+      "get": {
+        "operationId": "get_query_queries__fingerprint__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fingerprint",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{16}$",
+              "title": "Fingerprint",
+              "type": "string"
+            }
+          },
+          {
+            "description": "service.name, e.g. orders",
+            "in": "query",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "description": "service.name, e.g. orders",
+              "minLength": 1,
+              "title": "Service",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Baseline version (default: the one before `to`)",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Baseline version (default: the one before `to`)",
+              "title": "From"
+            }
+          },
+          {
+            "description": "Version to analyze (default: the latest deployed)",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version to analyze (default: the latest deployed)",
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueryOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such query in this comparison"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One SQL query: normalized text, code sites, per-endpoint change, plan"
+      }
+    },
+    "/source": {
+      "get": {
+        "operationId": "get_source_source_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "sha",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{7,40}$",
+              "title": "Sha",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "maxLength": 500,
+              "minLength": 1,
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {}
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "A file's text at a commit (for side-by-side diffs in the editor)"
+      }
+    },
+    "/symbols": {
+      "get": {
+        "operationId": "get_symbols_symbols_get",
+        "parameters": [
+          {
+            "description": "service.name, e.g. orders",
+            "in": "query",
+            "name": "service",
+            "required": true,
+            "schema": {
+              "description": "service.name, e.g. orders",
+              "minLength": 1,
+              "title": "Service",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Baseline version (default: the one before `to`)",
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Baseline version (default: the one before `to`)",
+              "title": "From"
+            }
+          },
+          {
+            "description": "Version to analyze (default: the latest deployed)",
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version to analyze (default: the latest deployed)",
+              "title": "To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SymbolLatencyOut"
+                  },
+                  "title": "Response Get Symbols Symbols Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Latency of every mapped symbol, for editor annotations (CodeLens)"
+      }
+    },
+    "/traces/{trace_id}": {
+      "get": {
+        "operationId": "get_trace_traces__trace_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trace_id",
+            "required": true,
+            "schema": {
+              "title": "Trace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TraceOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Trace not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "A trace as a waterfall: spans, critical-path time, code locations"
       }
     }
   }

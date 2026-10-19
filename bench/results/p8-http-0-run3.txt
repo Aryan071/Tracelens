@@ -1,0 +1,74 @@
+Using CPython 3.12.12 interpreter at: /usr/local/bin/python3
+Creating virtual environment at: /tmp/venv
+   Building tracelens-engine @ file:///w/engine
+   Building tracelens-explain @ file:///w/explainer
+   Building tracelens-indexer @ file:///w/indexer
+   Building tracelens-api @ file:///w/api
+   Building tracelens-ingest @ file:///w/ingest
+Downloading uvloop (4.3MiB)
+Downloading psycopg-binary (5.0MiB)
+Downloading pygments (1.2MiB)
+Downloading ruff (9.9MiB)
+Downloading mypy (14.8MiB)
+Downloading pydantic-core (2.0MiB)
+Downloading grpcio (6.8MiB)
+Downloading black (1.8MiB)
+Downloading anthropic (1.9MiB)
+Downloading lz4 (1.3MiB)
+Downloading ast-serialize (1.3MiB)
+Downloading clickhouse-connect (1.4MiB)
+      Built tracelens-explain @ file:///w/explainer
+      Built tracelens-api @ file:///w/api
+      Built tracelens-engine @ file:///w/engine
+      Built tracelens-indexer @ file:///w/indexer
+      Built tracelens-ingest @ file:///w/ingest
+ Downloaded pygments
+ Downloaded ast-serialize
+ Downloaded lz4
+ Downloaded clickhouse-connect
+ Downloaded anthropic
+ Downloaded black
+ Downloaded pydantic-core
+ Downloaded uvloop
+ Downloaded psycopg-binary
+ Downloaded grpcio
+ Downloaded ruff
+ Downloaded mypy
+Installed 69 packages in 80ms
+{
+  "label": "p8-http-0-run3",
+  "mode": "rate",
+  "protocol": "http",
+  "procs": 4,
+  "threads": 4,
+  "spans_per_request": 500,
+  "offered_rate": "max",
+  "send_seconds": 20.18,
+  "accepted_spans": 1912000,
+  "accepted_spans_per_s": 94745,
+  "inserted_spans_per_s_incl_drain": 90143,
+  "rejected_requests": 0,
+  "transport_errors": 0,
+  "attempts": 3824,
+  "latency_ms": {
+    "p50": 54.7,
+    "p95": 241.47,
+    "p99": 329.06,
+    "mean": 83.09
+  },
+  "peak_queue_spans": 34500.0,
+  "drain_seconds": 1.03,
+  "server_received_spans": 1912000.0,
+  "server_inserted_spans": 1912000.0,
+  "server_invalid_spans": 0.0,
+  "server_lost_spans": 0.0,
+  "service": "bench-1da6918d",
+  "stored_in_clickhouse": 1912000,
+  "unique_spans_in_clickhouse": 1912000,
+  "PASS_stored_equals_accepted": true
+}
+
+resource usage during run (docker stats, ~1-2s samples; 100% = one core):
+  tl-bench-load                    cpu avg(busy)     50%  max    195%   peak mem     113 MiB   (16 samples)
+  tracelens-clickhouse-1           cpu avg(busy)     84%  max    206%   peak mem     759 MiB   (16 samples)
+  tracelens-ingest-1               cpu avg(busy)    308%  max    424%   peak mem     521 MiB   (16 samples)

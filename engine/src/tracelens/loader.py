@@ -7,10 +7,12 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import Any
 
 import clickhouse_connect
 from clickhouse_connect.driver.client import Client
 
+from tracelens.errors import ExceptionEvent
 from tracelens.spans import Span
 
 # FixedString columns come back from clickhouse-connect as bytes: always select toString(...).
@@ -18,7 +20,7 @@ _COLUMNS = (
     "toString(trace_id), toString(span_id), toString(parent_span_id), service, name, toString(kind), "
     "toUnixTimestamp64Nano(start_time),"
     " toUnixTimestamp64Nano(start_time) + toInt64(duration_ns), "
-    "toString(status_code), code_function, code_filepath, code_lineno, http_route, http_method, db_system, service_version"
+    "toString(status_code), code_function, code_filepath, code_lineno, http_route, http_method, db_system, service_version, db_statement"
 )
 TRACE_BATCH = 500
 
@@ -33,25 +35,12 @@ def connect() -> Client:
     )
 
 
-def _span(r: Sequence[object]) -> Span:
-    return Span(
-        trace_id=str(r[0]),
-        span_id=str(r[1]),
-        parent_id=str(r[2]).strip("\x00"),
-        service=str(r[3]),
-        name=str(r[4]),
-        kind=str(r[5]),
-        start_ns=int(r[6]),  # type: ignore[call-overload]
-        end_ns=int(r[7]),  # type: ignore[call-overload]
-        status=str(r[8]),
-        code_function=str(r[9]),
-        code_filepath=str(r[10]),
-        code_lineno=int(r[11]),  # type: ignore[call-overload]
-        http_route=str(r[12]),
-        http_method=str(r[13]),
-        db_system=str(r[14]),
-        version=str(r[15]),
-    )
+def _span(r: Sequence[Any]) -> Span:
+    """Row of `_COLUMNS` -> Span. The columns are selected in the dataclass's field order and
+    clickhouse-connect already returns str/int, so the row is passed through positionally: this ran
+    for every span of every trace (87k per comparison) and the per-field str()/int() conversions it
+    replaced were about half of it."""
+    return Span(r[0], r[1], r[2].strip("\x00"), *r[3:])  # parent id: all-zero FixedString -> ''
 
 
 @dataclass(frozen=True, slots=True)
@@ -172,3 +161,48 @@ def fetch_version_requests(
         until,
         [RequestRef(str(r[0]), str(r[1]), str(r[2]).upper(), str(r[3])) for r in hits],
     )
+
+
+def fetch_exceptions(client: Client, service: str, version: str) -> list[ExceptionEvent]:
+    """Every `exception` span event recorded by `service` at `version` (OTel semantic convention:
+    exception.type / exception.message / exception.stacktrace)."""
+    rows = client.query(
+        "SELECT toString(trace_id), toString(span_id), toUnixTimestamp64Nano(ev_ts),"
+        " ev_attrs['exception.type'], ev_attrs['exception.message'],"
+        " ev_attrs['exception.stacktrace']"
+        " FROM spans ARRAY JOIN events.ts AS ev_ts, events.name AS ev_name,"
+        " events.attributes AS ev_attrs"
+        " WHERE service = {s:String} AND service_version = {v:String} AND ev_name = 'exception'"
+        " ORDER BY ev_ts",
+        parameters={"s": service, "v": version},
+    ).result_rows
+    return [
+        ExceptionEvent(
+            str(r[0]), str(r[1]), service, version, int(r[2]), str(r[3]), str(r[4]), str(r[5])
+        )
+        for r in rows
+    ]
+
+
+def fetch_trace(client: Client, trace_id: str) -> tuple[list[Span], list[ExceptionEvent]]:
+    """All spans of one trace and its exception events. No time bound: the caller only knows the id
+    (the bloom-filter skip index on trace_id keeps a single-trace lookup cheap, BENCHMARKS.md)."""
+    rows = client.query(
+        f"SELECT {_COLUMNS} FROM spans WHERE trace_id = {{id:String}}",
+        parameters={"id": trace_id},
+    ).result_rows
+    ev = client.query(
+        "SELECT toString(trace_id), toString(span_id), service, service_version,"
+        " toUnixTimestamp64Nano(ev_ts), ev_attrs['exception.type'], ev_attrs['exception.message'],"
+        " ev_attrs['exception.stacktrace']"
+        " FROM spans ARRAY JOIN events.ts AS ev_ts, events.name AS ev_name,"
+        " events.attributes AS ev_attrs"
+        " WHERE trace_id = {id:String} AND ev_name = 'exception' ORDER BY ev_ts",
+        parameters={"id": trace_id},
+    ).result_rows
+    return [_span(r) for r in rows], [
+        ExceptionEvent(
+            str(r[0]), str(r[1]), str(r[2]), str(r[3]), int(r[4]), str(r[5]), str(r[6]), str(r[7])
+        )
+        for r in ev
+    ]

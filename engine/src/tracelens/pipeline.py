@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import subprocess
 from collections import defaultdict
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -17,10 +18,16 @@ from tracelens import deployments as dep
 from tracelens import loader
 from tracelens.aggregate import Request, RequestAttribution, attribute_request
 from tracelens.commits import CommitChange, commits_between
-from tracelens.compare import PairAnalysis, analyze_pair
+from tracelens.compare import PairAnalysis, analyze_errors, analyze_pair
+from tracelens.ddl import index_tables
+from tracelens.errors import ErrorFinding, group_errors, new_error_groups
+from tracelens.explain import ExplainRefused, PlanSummary, explain_statement
 from tracelens.mapping import MemorySymbolIndex
 from tracelens.regression import DetectionConfig, EndpointKey
-from tracelens.symbols_pg import load_call_graph, load_index
+from tracelens.sourcemap import SourceMapStore
+from tracelens.sqlcorr import SqlSite, sites_by_fingerprint
+from tracelens.sqlstats import SqlShift
+from tracelens.symbols_pg import load_call_graph, load_index, load_sql_sites
 from tracelens.tree import build_forest
 
 
@@ -31,15 +38,25 @@ class RegressionRun:
     new: dict[str, object]
     commits: list[CommitChange] | None
     notes: list[str]
+    errors: dict[str, list[ErrorFinding]] = field(default_factory=dict)  # service -> new groups
+    sites: dict[str, list[SqlSite]] = field(default_factory=dict)  # query fingerprint -> literals
 
 
 def _attrs(
-    client: Client, service: str, version: str, idx: MemorySymbolIndex, limit: int
+    client: Client,
+    service: str,
+    version: str,
+    idx: MemorySymbolIndex,
+    limit: int,
+    endpoint_of_trace: dict[str, str] | None = None,
 ) -> dict[EndpointKey, list[RequestAttribution]]:
     since, until, refs = loader.fetch_version_requests(client, service, version, limit)
     out: dict[EndpointKey, list[RequestAttribution]] = defaultdict(list)
     if not refs:
         return out
+    if endpoint_of_trace is not None:
+        for r in refs:
+            endpoint_of_trace.setdefault(r.trace_id, f"{r.method} {r.route}")
     traces = loader.fetch_traces(client, [r.trace_id for r in refs], since, until)
     forests = {tid: build_forest(spans) for tid, spans in traces.items()}
     for r in refs:
@@ -70,6 +87,9 @@ def run_regressions(
     pairs: dict[str, tuple[str, str]] | None = None,
     limit: int = 3000,
     cfg: DetectionConfig | None = None,
+    sourcemaps: Path | None = None,
+    replica_dsn: str | None = None,
+    min_error_count: int = 3,
 ) -> RegressionRun:
     notes: list[str] = []
     client = loader.connect()
@@ -131,9 +151,11 @@ def run_regressions(
         if (svc, pair[0]) in seen and (svc, pair[1]) in seen:
             included[svc] = pair
     groups: dict[EndpointKey, tuple[list[RequestAttribution], list[RequestAttribution]]] = {}
+    trace_endpoint: dict[str, dict[str, str]] = {}  # service -> trace id -> "METHOD route"
     for svc, (v_old, v_new) in included.items():
+        trace_endpoint[svc] = {}
         before = _attrs(client, svc, v_old, idx_old, limit)
-        after = _attrs(client, svc, v_new, idx_new, limit)
+        after = _attrs(client, svc, v_new, idx_new, limit, trace_endpoint[svc])
         for ep in sorted(set(before) | set(after)):
             groups[ep] = (before.get(ep, []), after.get(ep, []))
 
@@ -145,6 +167,10 @@ def run_regressions(
     elif not old_d.commit_sha:
         notes.append(f"{service}@{old_d.version} has no registered commit")
     callees = load_call_graph(dsn, repo_name=repo_name, sha=sha_new, scope=scope)
+    sites = sites_by_fingerprint(load_sql_sites(dsn, repo_name=repo_name, sha=sha_new, scope=scope))
+    idx_tables = _index_tables(repo, sha_old) if sha_old else {}
+    explain = _explainer(replica_dsn, notes)
+    generated_at = datetime.now(UTC).replace(microsecond=0)
     analysis = analyze_pair(
         groups,
         service=service,
@@ -152,10 +178,77 @@ def run_regressions(
         new=new,
         commits=commits,
         callees=callees,
-        generated_at=datetime.now(UTC).replace(microsecond=0),
+        generated_at=generated_at,
         cfg=cfg,
+        sql_sites=sites,
+        index_tables=idx_tables,
+        explain=explain,
     )
-    return RegressionRun(analysis, old, new, commits, notes + analysis.notes)
+    # new error groups, per service that took part in the comparison
+    errors: dict[str, list[ErrorFinding]] = {}
+    for svc, (v_old, v_new) in included.items():
+        found = new_error_groups(
+            group_errors(
+                loader.fetch_exceptions(client, svc, v_old), idx_old, _maps(sourcemaps, v_old)
+            ),
+            group_errors(
+                loader.fetch_exceptions(client, svc, v_new), idx_new, _maps(sourcemaps, v_new)
+            ),
+            min_count=min_error_count,
+        )
+        if not found:
+            continue
+        errors[svc] = found
+        if sourcemaps is None and any(f.group.symbol_method != "source_map" for f in found):
+            notes.append(
+                f"{svc}: no --sourcemaps directory, error frames are mapped by function name only"
+            )
+        analysis.evidence.extend(
+            analyze_errors(
+                service=svc,
+                old={**old, "version": v_old},
+                new={**new, "version": v_new},
+                findings=found,
+                endpoint_of_trace=trace_endpoint.get(svc, {}),
+                commits=commits,
+                callees=callees,
+                generated_at=generated_at,
+            )
+        )
+    return RegressionRun(analysis, old, new, commits, notes + analysis.notes, errors, sites)
+
+
+def _maps(root: Path | None, version: str) -> SourceMapStore | None:
+    """Source maps of one deployed version: `<root>/<version>/` mirrors the repository layout."""
+    return (
+        SourceMapStore(root / version) if root is not None and (root / version).is_dir() else None
+    )
+
+
+def _index_tables(repo: str, sha: str) -> dict[str, str]:
+    """index -> table from the CREATE INDEX statements in the old tree's .sql files."""
+    scripts: list[str] = []
+    with git.BlobReader(repo) as reader:
+        for e in git.ls_tree(repo, sha):
+            if e.path.endswith(".sql") and e.size <= 1_000_000:
+                scripts.append(reader.read(e.blob_sha).decode("utf8", "replace"))
+    return index_tables(scripts)
+
+
+def _explainer(
+    dsn: str | None, notes: list[str]
+) -> Callable[[SqlShift], PlanSummary | None] | None:
+    if not dsn:
+        return None
+
+    def run(q: SqlShift) -> PlanSummary | None:
+        try:
+            return explain_statement(dsn, q.statement)
+        except (ExplainRefused, psycopg.Error) as e:
+            notes.append(f"EXPLAIN skipped for query {q.fingerprint}: {e}")
+            return None
+
+    return run
 
 
 def render(run: RegressionRun) -> str:
@@ -188,6 +281,17 @@ def render(run: RegressionRun) -> str:
             lines.append(
                 f"  symbol {s.key}  ({loc})  +{s.delta_mean_ms:.1f} ms  {s.share_of_increase:.0%} of the increase{via}"
             )
+        for q in [x for x in run.analysis.sql.get(ep, []) if x.flagged]:
+            where = ", ".join(f"{x.path}:{x.line}" for x in run.sites.get(q.fingerprint, [])[:2])
+            lines.append(
+                f"  query {q.fingerprint} [{q.kind}]  +{q.delta_total_ms:.1f} ms/request  "
+                f"calls {q.calls_before:.1f}->{q.calls_after:.1f}  per call p50 "
+                f"{q.before.p50:.2f}->{q.after.p50:.2f} ms  at {where or 'no matching literal in code'}"
+            )
+            lines.append(f"    {q.normalized}")
+            plan = run.analysis.plans.get(q.fingerprint)
+            if plan is not None:
+                lines.append(f"    plan: {plan.text}")
         lines.append("  commits, most likely cause first:")
         for rc in ranked[:6]:
             amb = (
@@ -199,6 +303,15 @@ def render(run: RegressionRun) -> str:
                 f"   #{rc.rank} {rc.change.sha[:10]} score {rc.score:.2f}  {rc.change.subject}{amb}"
             )
             lines += [f"        - {why}" for why in rc.reasons[:2]]
+    for svc, found in run.errors.items():
+        lines += ["", f"NEW ERRORS in {svc}:"]
+        for f in found:
+            g = f.group
+            top = f"{g.top_frame.file}:{g.top_frame.line}" if g.top_frame else "no in-app frame"
+            sym = f" in {g.symbol.qualified_name}" if g.symbol else ""
+            lines.append(
+                f"  {g.exc_type}: {g.message}  x{g.count}  at {top}{sym}  [{g.symbol_method}]"
+            )
     lines += ["", *[f"WARNING: {w}" for w in [*c.warnings, *run.notes]]]
     return "\n".join(lines)
 
@@ -249,6 +362,49 @@ def summary(run: RegressionRun) -> dict[str, object]:
             }
             for r in c.results
         ],
+        "sql": {
+            f"{ep[0]} {ep[1]} {ep[2]}": [
+                {
+                    "fingerprint": q.fingerprint,
+                    "normalized": q.normalized,
+                    "kind": q.kind,
+                    "flagged": q.flagged,
+                    "delta_ms_per_request": q.delta_total_ms,
+                    "calls_before": q.calls_before,
+                    "calls_after": q.calls_after,
+                    "p_adj": q.p_adj,
+                    "sites": [f"{x.path}:{x.line}" for x in run.sites.get(q.fingerprint, [])],
+                    "symbols": [k for k, _ in q.symbols],
+                    "plan": run.analysis.plans[q.fingerprint].text
+                    if q.fingerprint in run.analysis.plans
+                    else None,
+                    "seq_scans": sorted(run.analysis.plans[q.fingerprint].seq_scans)
+                    if q.fingerprint in run.analysis.plans
+                    else [],
+                }
+                for q in shifts
+            ]
+            for ep, shifts in run.analysis.sql.items()
+        },
+        "errors": {
+            svc: [
+                {
+                    "fingerprint": f.group.fingerprint,
+                    "type": f.group.exc_type,
+                    "message": f.group.message,
+                    "count": f.group.count,
+                    "new": f.is_new,
+                    "top_frame": f"{f.group.top_frame.file}:{f.group.top_frame.line}"
+                    if f.group.top_frame
+                    else None,
+                    "symbol": f.group.symbol.key if f.group.symbol else None,
+                    "mapping": f.group.symbol_method,
+                }
+                for f in found
+            ]
+            for svc, found in run.errors.items()
+        },
+        "evidence": [e.id for e in run.analysis.evidence],
         "ranked": {
             f"{ep[0]} {ep[1]} {ep[2]}": [
                 {
@@ -259,6 +415,16 @@ def summary(run: RegressionRun) -> dict[str, object]:
                     "reasons": rc.reasons,
                     "ambiguous_with": rc.ambiguous_with,
                     "symbols": [f"{s.change}:{s.key}" for s in rc.change.symbols],
+                    "schema_changes": [
+                        {
+                            "kind": x.event.kind,
+                            "object": x.event.object,
+                            "table": x.table,
+                            "file": x.event.file,
+                            "fingerprint": x.fingerprint,
+                        }
+                        for x in rc.schema_credits
+                    ],
                 }
                 for rc in ranked
             ]

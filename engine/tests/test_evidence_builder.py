@@ -96,7 +96,7 @@ def test_golden_evidence_document() -> None:
 def test_structure_ids_links_and_ranking() -> None:
     ev = build()
     items = {i.root.id: i.root for i in ev.items}
-    assert ev.id == "evd_orders_post_orders_1_0_0_to_1_1_0" and ev.schemaVersion == "1.1.0"
+    assert ev.id == "evd_orders_post_orders_1_0_0_to_1_1_0" and ev.schemaVersion == "1.2.0"
     lat = items["ev_latency_orders_post_orders"]
     assert lat.type == "latency_regression" and lat.data.test == "mann_whitney_u"
     assert lat.data.target == "POST /orders"

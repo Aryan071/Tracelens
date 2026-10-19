@@ -1,0 +1,162 @@
+{
+  "description": "The regressed endpoint is the only one: no control endpoints, so an environmental shift cannot be ruled out (the evidence notes it).",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_post_orders_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 42.215,
+            "p95Ms": 50.057,
+            "p99Ms": 52.604
+          },
+          "before": {
+            "count": 200,
+            "p50Ms": 16.274,
+            "p95Ms": 24.929,
+            "p99Ms": 29.087
+          },
+          "commonLanguageEffect": 1.0,
+          "effectSize": 1.0,
+          "notes": [
+            "no control endpoints: an environmental shift cannot be ruled out",
+            "no control endpoints (every critical path contains a changed symbol): environmental shifts cannot be separated from code changes",
+            "raw (not control-normalized) after-deploy p50 42.21 ms vs before 16.27 ms"
+          ],
+          "p95DeltaPct": 100.8,
+          "pValue": 2.41543e-67,
+          "rawPValue": 2.41543e-67,
+          "target": "POST /orders",
+          "test": "mann_whitney_u"
+        },
+        "id": "ev_latency_orders_post_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "commitShas": [
+            "444444444444"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_post_orders_1",
+            "ev_commit_4444444_orders_post_orders"
+          ],
+          "traceIds": [
+            "0000000000000000000000000002857a",
+            "0000000000000000000000000002598f",
+            "00000000000000000000000000025d78"
+          ]
+        },
+        "type": "latency_regression"
+      },
+      {
+        "confidence": 0.99,
+        "data": {
+          "criticalTimeAfterMs": 36.109,
+          "criticalTimeBeforeMs": 14.388,
+          "mappingConfidence": 0.99,
+          "mappingMethod": "semconv",
+          "onCriticalPath": true,
+          "selfTimeAfterMs": 32.498,
+          "selfTimeBeforeMs": 12.949,
+          "shareOfIncrease": 1.0,
+          "symbol": "demo/src/orders.ts:createOrder"
+        },
+        "id": "ev_attr_orders_post_orders_1",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_post_orders"
+          ]
+        },
+        "type": "span_attribution"
+      },
+      {
+        "confidence": 0.95,
+        "data": {
+          "author": "Ada",
+          "changedSymbols": [
+            "demo/src/orders.ts:createOrder"
+          ],
+          "committedAt": "2026-10-02T09:00:00Z",
+          "rank": 1,
+          "reasons": [
+            "modified demo/src/orders.ts:createOrder, which accounts for 100% of the latency increase"
+          ],
+          "score": 1.0,
+          "sha": "444444444444",
+          "subject": "Add payload fingerprint for audit logging"
+        },
+        "id": "ev_commit_4444444_orders_post_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "createOrder"
+            }
+          ],
+          "commitShas": [
+            "444444444444"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_post_orders_1"
+          ]
+        },
+        "type": "commit_change"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "POST /orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "POST /orders"
+      ],
+      "point": "endpoint"
+    },
+    {
+      "any": [
+        "4444444",
+        "payload fingerprint"
+      ],
+      "point": "commit"
+    },
+    {
+      "any": [
+        "control",
+        "environment",
+        "environmental",
+        "cannot be ruled out",
+        "caveat"
+      ],
+      "point": "caveat about controls/environment"
+    }
+  ],
+  "name": "no_controls"
+}

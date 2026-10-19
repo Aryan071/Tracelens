@@ -463,6 +463,46 @@
                 "type": "string"
               },
               "description": "Changed non-source files that could not be tied to symbols."
+            },
+            "schemaChanges": {
+              "type": "array",
+              "description": "Database schema changes (DDL) in the commit that touch tables read by a regressed query.",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "object",
+                  "file"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "drop_index",
+                      "create_index",
+                      "alter_table",
+                      "drop_table",
+                      "create_table"
+                    ]
+                  },
+                  "object": {
+                    "type": "string",
+                    "description": "Index or table the statement names."
+                  },
+                  "table": {
+                    "type": "string",
+                    "description": "Table affected, when known."
+                  },
+                  "file": {
+                    "type": "string"
+                  },
+                  "line": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                }
+              }
             }
           },
           "title": "CommitChangeData"
@@ -530,6 +570,21 @@
             "explainPlanSummary": {
               "type": "string",
               "description": "Present only if EXPLAIN (never ANALYZE) was run on a configured replica."
+            },
+            "changeKind": {
+              "type": "string",
+              "enum": [
+                "slower",
+                "more_calls",
+                "new"
+              ],
+              "description": "slower: each call takes longer (e.g. a plan change); more_calls: more calls per request (N+1); new: the query did not exist in the baseline."
+            },
+            "pValue": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Benjamini-Hochberg adjusted one-sided Mann-Whitney U p-value of time per request spent in this query."
             }
           },
           "title": "SqlChangeData"
@@ -592,6 +647,27 @@
             },
             "topFrame": {
               "$ref": "#/$defs/CodeLocation"
+            },
+            "baselineCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Occurrences of this error group in the baseline deployment."
+            },
+            "frames": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/CodeLocation"
+              },
+              "description": "In-application stack frames, innermost first, resolved through source maps when available."
+            },
+            "mappingMethod": {
+              "type": "string",
+              "enum": [
+                "source_map",
+                "function_name",
+                "none"
+              ],
+              "description": "How topFrame was tied to an indexed symbol."
             }
           },
           "title": "ErrorGroupData"

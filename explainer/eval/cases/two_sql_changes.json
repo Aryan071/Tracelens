@@ -1,0 +1,275 @@
+{
+  "description": "Two queries changed on one endpoint: the user_id lookup got slower, and a new stock query appeared.",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_get_users_userid_orders_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 16.152,
+            "p95Ms": 17.464,
+            "p99Ms": 17.89
+          },
+          "before": {
+            "count": 200,
+            "p50Ms": 2.872,
+            "p95Ms": 4.399,
+            "p99Ms": 5.133
+          },
+          "commonLanguageEffect": 1.0,
+          "controlNormalization": {
+            "controls": [
+              "GET /users/:userId/orders",
+              "POST /orders",
+              "POST /reserve"
+            ],
+            "shiftFactor": 1.0549
+          },
+          "effectSize": 1.0,
+          "notes": [
+            "range changes non-source files (SQL/config) that cannot be tied to symbols",
+            "raw (not control-normalized) after-deploy p50 17.04 ms vs before 2.87 ms"
+          ],
+          "p95DeltaPct": 296.97,
+          "pValue": 7.24628e-67,
+          "rawPValue": 7.24628e-67,
+          "target": "GET /users/:userId/orders",
+          "test": "mann_whitney_u"
+        },
+        "id": "ev_latency_orders_get_users_userid_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "commitShas": [
+            "666666666666"
+          ],
+          "queryFingerprints": [
+            "0ae71c901dc1fdc6",
+            "1fe6394d409622f6"
+          ],
+          "relatedEvidenceIds": [
+            "ev_attr_orders_get_users_userid_orders_1",
+            "ev_sql_orders_get_users_userid_orders_0ae71c901dc1fdc6",
+            "ev_sql_orders_get_users_userid_orders_1fe6394d409622f6",
+            "ev_commit_6666666_orders_get_users_userid_orders"
+          ],
+          "traceIds": [
+            "0000000000000000000000000001f67c",
+            "0000000000000000000000000001d4ae",
+            "0000000000000000000000000001d9b6"
+          ]
+        },
+        "type": "latency_regression"
+      },
+      {
+        "confidence": 0.99,
+        "data": {
+          "criticalTimeAfterMs": 13.767,
+          "criticalTimeBeforeMs": 2.539,
+          "mappingConfidence": 0.99,
+          "mappingMethod": "semconv",
+          "onCriticalPath": true,
+          "selfTimeAfterMs": 12.39,
+          "selfTimeBeforeMs": 2.285,
+          "shareOfIncrease": 1.0,
+          "symbol": "demo/src/orders.ts:findOrdersByUser"
+        },
+        "id": "ev_attr_orders_get_users_userid_orders_1",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_get_users_userid_orders"
+          ]
+        },
+        "type": "span_attribution"
+      },
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 13.277,
+            "p95Ms": 18.534,
+            "p99Ms": 21.674
+          },
+          "before": {
+            "count": 200,
+            "p50Ms": 1.52,
+            "p95Ms": 2.071,
+            "p99Ms": 2.31
+          },
+          "callCountAfter": 1.0,
+          "callCountBefore": 1.0,
+          "changeKind": "slower",
+          "explainPlanSummary": "Limit > Gather Merge > Sort > Seq Scan on orders.orders (est. rows 177, filter: (orders.user_id = $1))",
+          "fingerprint": "0ae71c901dc1fdc6",
+          "normalizedQuery": "select id, sku, qty, created_at from orders.orders where user_id = ? order by created_at desc limit ?",
+          "pValue": 2.41543e-67
+        },
+        "id": "ev_sql_orders_get_users_userid_orders_0ae71c901dc1fdc6",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 28,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "queryFingerprints": [
+            "0ae71c901dc1fdc6"
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_get_users_userid_orders",
+            "ev_attr_orders_get_users_userid_orders_1"
+          ],
+          "traceIds": [
+            "0000000000000000000000000001e49c",
+            "0000000000000000000000000001ce2b",
+            "0000000000000000000000000001d13d"
+          ]
+        },
+        "type": "sql_change"
+      },
+      {
+        "confidence": 1.0,
+        "data": {
+          "after": {
+            "count": 200,
+            "p50Ms": 3.81,
+            "p95Ms": 5.704,
+            "p99Ms": 6.408
+          },
+          "before": {
+            "count": 0,
+            "p50Ms": 0.0,
+            "p95Ms": 0.0,
+            "p99Ms": 0.0
+          },
+          "callCountAfter": 1.0,
+          "callCountBefore": 0.0,
+          "changeKind": "new",
+          "fingerprint": "1fe6394d409622f6",
+          "normalizedQuery": "select sku, qty from inventory.stock where qty < ?",
+          "pValue": 2.35922e-76
+        },
+        "id": "ev_sql_orders_get_users_userid_orders_1fe6394d409622f6",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/src/orders.ts",
+              "line": 30,
+              "symbol": "findOrdersByUser"
+            }
+          ],
+          "queryFingerprints": [
+            "1fe6394d409622f6"
+          ],
+          "relatedEvidenceIds": [
+            "ev_latency_orders_get_users_userid_orders",
+            "ev_attr_orders_get_users_userid_orders_1"
+          ],
+          "traceIds": [
+            "0000000000000000000000000001dc2d",
+            "0000000000000000000000000001d4fc",
+            "0000000000000000000000000001ddec"
+          ]
+        },
+        "type": "sql_change"
+      },
+      {
+        "confidence": 0.9057,
+        "data": {
+          "author": "Ada",
+          "changedSymbols": [],
+          "committedAt": "2026-10-02T09:00:00Z",
+          "otherFiles": [
+            "demo/db/migrations/002_drop_orders_user_idx.sql"
+          ],
+          "rank": 1,
+          "reasons": [
+            "drop index orders_user_id_idx (demo/db/migrations/002_drop_orders_user_idx.sql:3) on orders.orders, read by query 0ae71c901dc1fdc6 which accounts for 91% of the latency increase; EXPLAIN shows a sequential scan of orders.orders"
+          ],
+          "schemaChanges": [
+            {
+              "file": "demo/db/migrations/002_drop_orders_user_idx.sql",
+              "kind": "drop_index",
+              "line": 3,
+              "object": "orders_user_id_idx",
+              "table": "orders.orders"
+            }
+          ],
+          "score": 0.9057,
+          "sha": "666666666666",
+          "subject": "Drop unused orders user_id index"
+        },
+        "id": "ev_commit_6666666_orders_get_users_userid_orders",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "demo/db/migrations/002_drop_orders_user_idx.sql",
+              "line": 3
+            }
+          ],
+          "commitShas": [
+            "666666666666"
+          ],
+          "relatedEvidenceIds": [
+            "ev_sql_orders_get_users_userid_orders_0ae71c901dc1fdc6"
+          ]
+        },
+        "type": "commit_change"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "GET /users/:userId/orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "slower",
+        "each call"
+      ],
+      "point": "slower query"
+    },
+    {
+      "any": [
+        "did not exist",
+        "new"
+      ],
+      "point": "new query"
+    },
+    {
+      "any": [
+        "6666666",
+        "drop unused"
+      ],
+      "point": "migration commit"
+    }
+  ],
+  "name": "two_sql_changes"
+}

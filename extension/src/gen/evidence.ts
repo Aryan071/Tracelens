@@ -153,6 +153,22 @@ export interface CommitChangeData {
    * Changed non-source files that could not be tied to symbols.
    */
   otherFiles?: string[];
+  /**
+   * Database schema changes (DDL) in the commit that touch tables read by a regressed query.
+   */
+  schemaChanges?: {
+    kind: "drop_index" | "create_index" | "alter_table" | "drop_table" | "create_table";
+    /**
+     * Index or table the statement names.
+     */
+    object: string;
+    /**
+     * Table affected, when known.
+     */
+    table?: string;
+    file: string;
+    line?: number;
+  }[];
 }
 export interface SqlChange {
   /**
@@ -178,6 +194,14 @@ export interface SqlChangeData {
    * Present only if EXPLAIN (never ANALYZE) was run on a configured replica.
    */
   explainPlanSummary?: string;
+  /**
+   * slower: each call takes longer (e.g. a plan change); more_calls: more calls per request (N+1); new: the query did not exist in the baseline.
+   */
+  changeKind?: "slower" | "more_calls" | "new";
+  /**
+   * Benjamini-Hochberg adjusted one-sided Mann-Whitney U p-value of time per request spent in this query.
+   */
+  pValue?: number;
 }
 export interface ErrorGroup {
   /**
@@ -196,4 +220,16 @@ export interface ErrorGroupData {
   count: number;
   isNewInDeployment: boolean;
   topFrame?: CodeLocation;
+  /**
+   * Occurrences of this error group in the baseline deployment.
+   */
+  baselineCount?: number;
+  /**
+   * In-application stack frames, innermost first, resolved through source maps when available.
+   */
+  frames?: CodeLocation[];
+  /**
+   * How topFrame was tied to an indexed symbol.
+   */
+  mappingMethod?: "source_map" | "function_name" | "none";
 }

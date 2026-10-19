@@ -6,6 +6,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 UV_IMG=ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+mkdir -p .tmp/uv-cache .tmp/uv-venv   # shared with the Makefile targets: no re-download per run
 [ "${KEEP_DEMO:-0}" = 1 ] || docker compose stop orders inventory payments loadgen >/dev/null 2>&1 || true
 NET=$(docker inspect "$(docker compose ps -q ingest)" --format '{{range $k,$v := .NetworkSettings.Networks}}{{$k}}{{end}}')
 S=$(mktemp); trap 'kill $SAMPLER 2>/dev/null || true; rm -f "$S"' EXIT
@@ -14,6 +15,7 @@ SAMPLER=$!
 OUT=$(mktemp)
 docker run --rm --name tl-bench-load --network "$NET" -u "$(id -u):$(id -g)" \
   -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv -e UV_PROJECT_ENVIRONMENT=/tmp/venv \
+  -v "$PWD/.tmp/uv-cache":/tmp/uv -v "$PWD/.tmp/uv-venv":/tmp/venv \
   -v "$PWD":/w -w /w "$UV_IMG" uv run --frozen --all-packages python bench/ingest_load.py "$@" > "$OUT"
 kill $SAMPLER 2>/dev/null || true
 cat "$OUT"

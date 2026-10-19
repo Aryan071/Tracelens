@@ -1,0 +1,72 @@
+{
+  "durationMs": 50.0,
+  "spans": [
+    {
+      "code": null,
+      "criticalMs": 2.0,
+      "dbStatement": null,
+      "durationMs": 50.0,
+      "exceptions": [],
+      "fingerprint": null,
+      "kind": "SERVER",
+      "name": "POST /orders",
+      "parentId": null,
+      "service": "orders",
+      "spanId": "1111111111111111",
+      "startOffsetMs": 0.0,
+      "status": "UNSET"
+    },
+    {
+      "code": {
+        "file": "src/orders.ts",
+        "line": null,
+        "symbol": "createOrder"
+      },
+      "criticalMs": 8.0,
+      "dbStatement": null,
+      "durationMs": 48.0,
+      "exceptions": [],
+      "fingerprint": null,
+      "kind": "INTERNAL",
+      "name": "createOrder",
+      "parentId": "1111111111111111",
+      "service": "orders",
+      "spanId": "2222222222222222",
+      "startOffsetMs": 1.0,
+      "status": "UNSET"
+    },
+    {
+      "code": null,
+      "criticalMs": 10.0,
+      "dbStatement": "SELECT id, sku FROM orders.orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20",
+      "durationMs": 10.0,
+      "exceptions": [],
+      "fingerprint": "9f1213fdf35b54d5",
+      "kind": "CLIENT",
+      "name": "pg.query:SELECT",
+      "parentId": "2222222222222222",
+      "service": "orders",
+      "spanId": "3333333333333333",
+      "startOffsetMs": 2.0,
+      "status": "UNSET"
+    },
+    {
+      "code": null,
+      "criticalMs": 30.0,
+      "dbStatement": null,
+      "durationMs": 30.0,
+      "exceptions": [
+        "Error: card declined"
+      ],
+      "fingerprint": null,
+      "kind": "SERVER",
+      "name": "POST /charge",
+      "parentId": "2222222222222222",
+      "service": "payments",
+      "spanId": "4444444444444444",
+      "startOffsetMs": 15.0,
+      "status": "ERROR"
+    }
+  ],
+  "traceId": "cccccccccccccccccccccccccccccccc"
+}

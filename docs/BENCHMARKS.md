@@ -331,3 +331,114 @@ v1.2.0 (N+1 queries), load at 12 requests/s, registered through `POST /deploymen
   ranked #1. `POST /orders` was NOT flagged: the machine got ~25% faster during the long final window
   while that endpoint carries a fixed 25 ms busy-wait, so relative to its sped-up controls it looked
   slower although its raw latency fell 12% (see ADR-0017's amendment).
+
+# Phase 5: SQL and error correlation
+
+Hardware: Intel Core Ultra 5 125U (14 threads), laptop, Docker for ClickHouse/PostgreSQL/demo on the same machine, Python 3.12.
+
+## SQL normalization (`sqlfp.normalize`, `.tmp/bench_sqlfp.py`, single thread)
+| Case | Rate |
+|---|---|
+| uncached, mixed 4 statement shapes (one with a 50-element `IN` list and a comment) | 22,900 statements/s (43.6 us each) |
+| `describe()` with its LRU cache, same mix | 11.1 M calls/s |
+
+The cache is what matters in analysis: a service repeats a few hundred distinct statements millions of times, and a request's database spans resolve to a dict hit.
+The SQL analysis step itself (per-fingerprint tests of an already flagged endpoint) was not separately benchmarked; the end-to-end run below includes it.
+
+## End to end on real containers (`scripts/e2e_phase5.sh`, 4 deployments, ~10 minutes)
+Scratch repo with 13 commits (7 decoys: whitespace-only, comment-only, unrelated helpers and retry tweaks), deployments v1.2.0 -> v1.3.0 (a migration drops `orders_user_id_idx`; no application symbol changes) -> v1.4.0 (a validation throws on large orders) -> v1.4.1 (same commit redeployed). Load at 12 requests/s, 300,000 seeded orders, source maps copied from each build, the demo database used as the EXPLAIN replica. 26 checks in `scripts/check_phase5.py`, all passing:
+- 1.2.0 -> 1.3.0: flags exactly `GET /users/:userId/orders` (p50 9.5 -> 18.7 ms). The query `select ... from orders.orders where user_id = ? order by created_at desc limit ?` is flagged `slower` (per call p50 1.60 -> 12.18 ms, calls 1.0 -> 1.0, +10.7 ms per request), mapped to the literal at `demo/src/orders.ts:28` inside `findOrdersByUser`, EXPLAIN reports `Limit > Gather Merge > Sort > Seq Scan on orders.orders (filter: (orders.user_id = $1))`, and the migration commit is ranked #1 with score 1.00 and the recorded DDL (`drop_index orders.orders_user_id_idx` on `orders.orders`). Every decoy scores 0. The other three endpoints stay quiet.
+- 1.3.0 -> 1.4.0: one new error group (`Error: order total 5997 exceeds the payment limit`, 134 occurrences) whose top frame, resolved through the source map from `dist/orders.js:55:19`, is `demo/src/orders.ts:54` (the throw statement in the deployed tree, verified with `git show`), mapped to `createOrder`; the throwing commit is ranked #1 for it.
+- 1.4.0 -> 1.4.1 (same commit): no regression, no new error group, no flagged query, no Evidence document.
+Limits of this evidence: one run on one machine; the e2e needs about 10 minutes and real containers, so it is not part of `make check`.
+
+# Phase 6: query API and VS Code extension
+
+Hardware as in Phase 5 (Intel Core Ultra 5 125U, 14 threads, one laptop; ClickHouse, PostgreSQL, the API in Docker beside the demo and load). Data: the `scripts/e2e_phase5.sh` run, 76,406 spans, four deployments with about 440 requests per endpoint per version. Each figure is a loop of 30 requests from the host to the published API port.
+
+| Endpoint | p50 | p95 | Notes |
+|---|---|---|---|
+| `GET /comparisons` (cold, not in the 30 s cache) | 3.3-3.8 s (3 runs: 3.79, 3.34, 3.46 s) | not measured (n = 3) | loads every trace of two deployments of the 3 services, maps, attributes, tests, ranks commits, EXPLAINs the flagged query |
+| `GET /comparisons` (cached) | 5 ms | 7 ms | JSON of the same run |
+| `GET /symbols` (cached run) | 13 ms | 17 ms | pools per-request critical times by symbol |
+| `GET /queries/{fingerprint}` (cached run) | 4 ms | 5 ms | |
+| `GET /traces/{id}` (48 spans) | 121 ms | 131 ms | ClickHouse single-trace lookup (bloom index) plus tree, critical path, mapping, index lookup |
+| `GET /commits/{sha}` (2 files) | 22 ms | 24 ms | `git show` per file |
+| `GET /source` | 11 ms | 13 ms | |
+| `GET /endpoints` (1 h window) | 43 ms | 52 ms | one aggregate query |
+
+The cold comparison is the cost that matters: the editor shows it once per selection, then everything else (tree, CodeLens, query and commit views) is served from the cache for 30 s. It is dominated by Python-side trace processing, not by ClickHouse (a profiling candidate for Phase 8; DESIGN.md open question 20).
+
+## Extension tests
+- 26 unit and contract tests (`node:test`): formatting, path matching, tree model, waterfall layout, webview HTML (CSP, escaping), and the API's golden responses against `api/openapi.json` and the Evidence schema.
+- 13 editor tests inside a real VS Code 1.141 (`@vscode/test-electron`): tree, CodeLens, click-through to code, commit diff, SQL document and trace panel, config switches, API failure and recovery, and the version-selection race below.
+- 4 live walkthrough tests inside VS Code against the running demo stack (`scripts/walkthrough.sh`): the missing-index chain (endpoint -> `findOrdersByUser` -> query -> sequential-scan plan -> migration commit diff -> trace waterfall), the code lens on `findOrdersByUser`, the thrown exception opening `demo/src/orders.ts` at the throw line and its commit's diff, and the no-op redeploy showing nothing.
+
+The live run found a bug the stub tests could not: selecting versions while the tree's first (default-version) load was still running returned that load's result. Fixed in `session.ts`; the stub now answers default-version requests slowly, like the real API, and a test asserts the chosen versions are the ones requested (verified to fail on the old code).
+
+# Phase 8: full re-run, and two performance fixes
+
+## Conditions (read this before comparing with the tables above)
+Same laptop as before (Intel Core Ultra 5 125U, 14 threads, 14 GB), Docker 29.1.3, ClickHouse 24.8, PostgreSQL 16, Python 3.12. **This time the laptop was running on battery with the `powersave` frequency governor** (mean core clock 1.2-1.4 GHz when sampled; `bench/env.sh` prints this and `bench/with_quiet_machine.sh` records it with each run). The earlier phases evidently ran in a faster power state: the same code on the same data was about twice as slow across the board, including operations the code changes cannot affect (the ClickHouse-only queries below are 2x slower than their Phase 3 figures). So **the absolute numbers in this section are not comparable with Phases 1-4, and the earlier tables are kept as the reference for a plugged-in machine.** Only comparisons made back to back under the same conditions (the A/B below) are valid across code changes. Another project's CPU-heavy benchmark was also running on this machine for part of the session; runs that overlapped it were repeated, and `with_quiet_machine.sh` waits for a quiet machine (its sampler flagged a few seconds of desktop-compositor activity during the indexer run, noted below).
+
+## The cold comparison, before and after (`bench/cmp_bench.py`, 7 runs per cell, interleaved A/B, 3 rounds)
+`GET /comparisons` for a selection that is not cached: `pipeline.run_regressions` on the Phase 5 end-to-end data (3 services x 2 versions, 2,978 requests, 87,298 spans).
+
+| Stage (median per run) | Before | After |
+|---|---|---|
+| ClickHouse fetch + row conversion | 1.16 / 1.18 / 1.23 s | 0.70 / 0.73 / 0.76 s |
+| critical path + span-to-symbol mapping | 0.85 / 0.84 / 0.83 s | 0.70 / 0.69 / 0.69 s |
+| tree building | 0.38 / 0.43 / 0.40 s | 0.42 / 0.44 / 0.39 s |
+| everything else (index load, git, commit ranking, EXPLAIN, errors; by subtraction) | about 0.8 s | about 0.7 s |
+| **Total, median of 7** | **3.18 / 3.18 / 3.18 s** | **2.59 / 2.51 / 2.54 s** |
+
+About **20% faster** (3.18 s to about 2.5 s), the same in all three rounds; the order alternated (before, after, before, ...) so drift in machine state affects both sides. Profile before the fixes (cProfile, top by own time): 87,298 `Span` constructions at 2.1 us each plus per-field `str()`/`int()` conversions (about 1.2 s of 5.1 s under the profiler), `build_forest`, `timing.analyze`, and `map_span` called 53,778 times to map the same few dozen span shapes. The two fixes (ADR-0030): row conversion passes ClickHouse's already-typed row straight into a non-frozen slots dataclass (construction 2.14 us -> 0.40 us in a microbenchmark), and span-to-symbol mapping is memoized per index on the fields it reads. What remains is mostly ClickHouse transfer and decode, tree building and the critical path, all in Python; a further step would be fetching fewer columns or computing in ClickHouse.
+
+## Ingestion (`bench/run_all.sh`; 4 ingest processes, 4x4 client threads, 500 spans/request, 20 s per run)
+| Run | Accepted spans/s | Landed in ClickHouse /s | p50 / p95 / p99 ms | Rejected |
+|---|---|---|---|---|
+| OTLP/HTTP, max rate, 4 runs | 71.8k, 98.1k, 94.7k, 90.3k (median 92.5k) | 68.4k, 93.3k, 90.1k, 85.9k (median 88.0k) | 53-83 / 239-262 / 329-398 | 0 |
+| OTLP/gRPC, max rate, 4 runs | 24.4k, 69.8k, 70.9k, 45.9k (median 57.9k) | 23.2k, 66.4k, 67.5k, 44.2k | 95-313 / 243-452 / 340-464 | 0 |
+| Burst, 2,000,000 spans over HTTP | 75.7k | 73.6k including drain | | 0 |
+
+gRPC varies widely between runs because `SO_REUSEPORT` pins long-lived connections to processes unevenly (DESIGN.md open question 2); the first run (24k) was also the coldest. HTTP at 92.5k median is above the 81k recorded in Phase 1 despite the slower power state; run-to-run spread is large (72k-98k), so no improvement is claimed.
+
+Correctness under stress (all passed): the 2M burst stored exactly 2,000,000 spans, no loss, no duplicates; a 20 s ClickHouse outage mid-burst stored exactly 1,504,000 acknowledged spans, 0 lost, 63 failed insert attempts retried; a graceful SIGTERM of ingest mid-burst lost 0 spans (every process stopped cleanly) with 163 client transport errors retried (OTLP is at-least-once). The graceful-restart test was fixed in this phase: it stopped ingest after a fixed 5 s, but the benchmark client's startup now takes longer than that on a cold cache, so it started against an already-stopped ingest and failed on DNS, not on data loss; it now waits until load is flowing.
+
+Memory during the burst/ladder runs (docker stats peaks): ingest 514-564 MiB (buffer capped at 200,000 spans), ClickHouse 682-829 MiB, load client 115-124 MiB.
+
+## Indexer on typeorm (`5a8a140`, 3,615 TS/JS files, 305,613 lines; PostgreSQL on the same machine)
+| | This run (battery) | Phase 2 record |
+|---|---|---|
+| Cold index, 13 workers | 8.21 s wall (37.2k lines/s, about 2.7 s per 100K lines) | 3.85 s (79k lines/s, about 1.3 s per 100K) |
+| Incremental commit, median of 12 | 1.69 s (max 2.77 s) | 0.72 s (max 1.74 s) |
+| Re-index of an unchanged commit | 1.29 s | 0.61 s |
+| Peak RSS (main / largest worker) | 98 / 56 MB | 99 / 56 MB |
+
+The ratio to Phase 2 (about 2.1-2.3x) matches the machine-wide slowdown above, not a code change (the indexer was not touched in Phase 8); memory is unchanged because it does not depend on clock speed. The sampler recorded 7 s of foreign CPU load (GNOME shell) during this run.
+
+## Engine benchmarks (`bench/engine_bench.py`, 1.08M synthetic spans in a separate database)
+| | This run (battery) | Phase 3 record |
+|---|---|---|
+| Pure analysis, 1,000 traces, demo index | 110k spans/s | 165k spans/s |
+| Pure analysis, 1,000 traces, 6,000-symbol index | 151k spans/s | 147k spans/s |
+| List 1,000 SERVER spans of an endpoint | 17.2 ms p50, 21.1 ms p95 | 9.0, 11.2 |
+| Fetch 500 traces (13,500 spans) | 125 ms p50, 223 ms p95 | 86.7, 140 |
+| Trace by id, bloom index (time-bounded) | 18.7 ms p50, 22.3 ms p95 | 8.7, 11.0 |
+| Trace by id, trace-ordered projection | 11.1 ms p50, 13.2 ms p95 (+110% storage) | 4.6, 6.2 (+110%) |
+| End to end, analyze 1,000 requests | 773 ms p50, 800 ms p95 | 438, 471 |
+| Compressed size | 21.0 bytes/span | 21.0 |
+
+The ClickHouse-only rows are about 2x slower, which the Phase 8 code cannot cause, so they are the measure of the machine state; the end-to-end row includes both that and the SQL-call extraction added in Phase 5 (a second pass over each request's spans). Pure analysis at 6,000 symbols matching the record while the demo-index case is 33% lower shows how noisy a single run is at these durations (the Phase 3 note records a 5% spread between runs on a steady machine).
+
+## Acceptance: fresh clone -> `docker compose up` -> the demo works, under 5 minutes
+A copy of the working tree as a clone would contain it (288 files, 4.2 MB: `git ls-files --cached --others --exclude-standard`, committed in a scratch repository) in an empty directory, with no Docker project, volumes or layer cache of ours, on the laptop above (on battery, see Conditions):
+
+| Step | Time since start |
+|---|---|
+| `docker compose build --no-cache` (ingest, API, demo images from scratch) | 30-33 s |
+| `docker compose up -d --wait` returns (PostgreSQL, ClickHouse, ingest, API healthy; demo and load generator running) | 43-45 s |
+| `GET /endpoints?service=orders&window=5m` shows real traffic (23 requests across 3 endpoints) | **49-52 s** (two runs) |
+| `scripts/demo.sh` (deploys 4 versions at 30 s each, indexes, analyzes, runs the 26 checks) | 245 s, exit 0, all 26 checks passed |
+
+Not included, so not claimed: pulling the base images (PostgreSQL, ClickHouse, Node, uv were already present locally; on a machine without them add the download of about 1.2 GB), and installing Node/VS Code for the extension. The first run of this test found a bug that is now fixed: the API's default bind mount for source maps made Docker create `.tmp/` as a root-owned directory in the checkout, after which `make` could not write there; it is a named volume now.

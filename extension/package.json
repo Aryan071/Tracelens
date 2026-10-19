@@ -3,13 +3,118 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "node --test test/"
+    "build": "tsc -p .",
+    "typecheck": "tsc --noEmit -p . && tsc -p tsconfig.check.json",
+    "test": "tsc -p . && node --test test/ out/test/unit/",
+    "test:vscode": "tsc -p . && node out/test/runTest.js",
+    "test:live": "tsc -p . && TRACELENS_API_URL=${TRACELENS_API_URL:-http://localhost:18080} node out/test/runTest.js"
   },
   "devDependencies": {
+    "@types/node": "^20.16.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.5.2",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
-    "typescript": "^5.6.3",
-    "@types/node": "^20.16.0"
+    "typescript": "^5.6.3"
+  },
+  "displayName": "TraceLens",
+  "description": "Production-to-code intelligence: regressed endpoints, slow queries, new errors and the commits that explain them, in your editor.",
+  "publisher": "tracelens",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Debuggers",
+    "Visualization"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "tracelens",
+          "title": "TraceLens",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "tracelens": [
+        {
+          "id": "tracelens.regressions",
+          "name": "Regressions",
+          "contextualTitle": "TraceLens"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "tracelens.refresh",
+        "title": "TraceLens: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "tracelens.selectDeployments",
+        "title": "TraceLens: Compare Deployments\u2026",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "tracelens.open",
+        "title": "TraceLens: Open"
+      },
+      {
+        "command": "tracelens.openSymbol",
+        "title": "TraceLens: Open Endpoint Trace for Symbol"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "tracelens.selectDeployments",
+          "when": "view == tracelens.regressions",
+          "group": "navigation"
+        },
+        {
+          "command": "tracelens.refresh",
+          "when": "view == tracelens.regressions",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "tracelens.open",
+          "when": "false"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "TraceLens",
+      "properties": {
+        "tracelens.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:18080",
+          "description": "Base URL of the TraceLens API."
+        },
+        "tracelens.service": {
+          "type": "string",
+          "default": "orders",
+          "description": "service.name to analyze."
+        },
+        "tracelens.codeLens.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show p95 latency annotations above functions."
+        },
+        "tracelens.refreshSeconds": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Refresh automatically every N seconds (0 = manual)."
+        }
+      }
+    }
   }
 }

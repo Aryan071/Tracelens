@@ -1,0 +1,44 @@
+{
+  "changes": [
+    {
+      "callsAfter": 1.0,
+      "callsBefore": 1.0,
+      "deltaMsPerRequest": 13.3481612475,
+      "endpoint": "POST /orders",
+      "exampleTraceIds": [
+        "00000000000000000000000000025f38",
+        "000000000000000000000000000253c9",
+        "00000000000000000000000000025ad5"
+      ],
+      "fingerprint": "9f1213fdf35b54d5",
+      "flagged": true,
+      "issuingSymbols": [
+        "src/orders.ts:createOrder"
+      ],
+      "kind": "slower",
+      "normalized": "select id, sku from orders.orders where user_id = ? order by created_at desc limit ?",
+      "pAdj": 4.830856390397669e-67,
+      "perCallP50AfterMs": 14.605610500000001,
+      "perCallP50BeforeMs": 1.502936,
+      "plan": null,
+      "seqScans": [],
+      "service": "orders",
+      "sites": [
+        {
+          "file": "demo/src/orders.ts",
+          "line": 28,
+          "symbol": "findOrdersByUser"
+        }
+      ]
+    }
+  ],
+  "fingerprint": "9f1213fdf35b54d5",
+  "normalized": "select id, sku from orders.orders where user_id = ? order by created_at desc limit ?",
+  "sites": [
+    {
+      "file": "demo/src/orders.ts",
+      "line": 28,
+      "symbol": "findOrdersByUser"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from datetime import UTC, datetime, timedelta
@@ -107,6 +108,18 @@ def main(argv: list[str] | None = None) -> None:
     pr.add_argument(
         "--warmup", type=float, default=5.0, help="seconds of the new version to discard"
     )
+    pr.add_argument(
+        "--sourcemaps",
+        default=None,
+        help="directory with one subdirectory per version, each mirroring the repo layout "
+        "(<dir>/<version>/demo/dist/orders.js.map), used to map error frames to TypeScript",
+    )
+    pr.add_argument(
+        "--replica-dsn",
+        default=os.environ.get("TRACELENS_REPLICA_DSN"),
+        help="read replica to EXPLAIN (never ANALYZE) regressed queries against; default "
+        "$TRACELENS_REPLICA_DSN, unset = no EXPLAIN",
+    )
     pr.add_argument("--out", default=None, help="write Evidence JSON documents to this directory")
     pr.add_argument("--summary", default=None, help="write a machine-readable summary JSON here")
     pr.add_argument("--json", action="store_true")
@@ -133,6 +146,8 @@ def main(argv: list[str] | None = None) -> None:
             dsn=a.dsn or _store.dsn_from_env(),
             limit=a.limit,
             cfg=DetectionConfig(warmup_s=a.warmup),
+            sourcemaps=_P(a.sourcemaps) if a.sourcemaps else None,
+            replica_dsn=a.replica_dsn,
         )
         print(pipeline.render(run))
         if a.summary:
@@ -152,7 +167,8 @@ def main(argv: list[str] | None = None) -> None:
                     indent=1,
                 )
             )
-        sys.exit(2 if any(r.status == "regression" for r in run.analysis.comparison.results) else 0)
+        found = any(r.status == "regression" for r in run.analysis.comparison.results)
+        sys.exit(2 if found or run.errors else 0)
 
     if a.cmd == "endpoints":
         for e in loader.list_endpoints(loader.connect(), since, until, a.service):

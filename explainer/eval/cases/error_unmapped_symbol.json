@@ -1,0 +1,81 @@
+{
+  "description": "A new exception from a frame the code index cannot map: no symbol, no ranked commits.",
+  "evidence": {
+    "generatedAt": "2026-10-03T00:00:00Z",
+    "id": "evd_orders_post_orders_errors_1_2_0_to_1_3_0",
+    "items": [
+      {
+        "confidence": 0.24,
+        "data": {
+          "baselineCount": 0,
+          "count": 8,
+          "exceptionType": "Error",
+          "fingerprint": "ecb407660b8e935d",
+          "frames": [
+            {
+              "file": "/app/demo/src/gen.js",
+              "line": 35
+            }
+          ],
+          "isNewInDeployment": true,
+          "mappingMethod": "none",
+          "message": "socket hang up after 1 ms",
+          "topFrame": {
+            "file": "/app/demo/src/gen.js",
+            "line": 35
+          }
+        },
+        "id": "ev_error_ecb407660b8e935d",
+        "links": {
+          "codeLocations": [
+            {
+              "file": "/app/demo/src/gen.js",
+              "line": 35
+            }
+          ],
+          "commitShas": [],
+          "relatedEvidenceIds": [],
+          "traceIds": [
+            "00000000000000000000000000000001",
+            "00000000000000000000000000000002",
+            "00000000000000000000000000000003"
+          ]
+        },
+        "type": "error_group"
+      }
+    ],
+    "schemaVersion": "1.2.0",
+    "subject": {
+      "baselineDeployment": {
+        "commitSha": "aaaaaaaaaaaa",
+        "version": "1.2.0"
+      },
+      "currentDeployment": {
+        "commitSha": "bbbbbbbbbbbb",
+        "version": "1.3.0"
+      },
+      "endpoint": "POST /orders",
+      "service": "orders"
+    }
+  },
+  "expected": [
+    {
+      "any": [
+        "socket hang up"
+      ],
+      "point": "message"
+    },
+    {
+      "any": [
+        "no commit",
+        "cannot",
+        "not mapped",
+        "unmapped",
+        "no suspect",
+        "no symbol"
+      ],
+      "point": "says it cannot be tied to code"
+    }
+  ],
+  "name": "error_unmapped_symbol"
+}

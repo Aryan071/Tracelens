@@ -1,0 +1,41 @@
+{
+  "attempts": 0,
+  "claims": [
+    {
+      "citations": [
+        "ev_latency_orders_post_orders"
+      ],
+      "text": "POST /orders got slower: p95 28.7 ms -> 29.0 ms (+1%) over 200 and 200 requests (mann_whitney_u, p = 1.1e-18)."
+    },
+    {
+      "citations": [
+        "ev_attr_orders_post_orders_1"
+      ],
+      "text": "100% of the increase is in src/orders.ts:createOrder (src/orders.ts:30): self time 14.9 ms -> 17.6 ms."
+    },
+    {
+      "citations": [
+        "ev_latency_orders_post_orders"
+      ],
+      "text": "Caveat: environment shift 2.33x outside [0.5, 2.0]: clamped, unreliable"
+    },
+    {
+      "citations": [
+        "ev_sql_orders_post_orders_9f1213fdf35b54d5"
+      ],
+      "text": "Query 9f1213fd (\"select id, sku from orders.orders where user_id = ? order by created_at desc limit ?\"): each call got slower; per call p50 1.5 ms -> 14.6 ms, calls per request 1 -> 1; in src/orders.ts:14."
+    },
+    {
+      "citations": [
+        "ev_commit_2222222_orders_post_orders",
+        "ev_sql_orders_post_orders_9f1213fdf35b54d5"
+      ],
+      "text": "Suspect #1: commit 2222222 \"drop the user index\" (score 1.00): drop index orders_user_id_idx (demo/db/migrations/002_drop_user_idx.sql:1) on orders.orders, read by query 9f1213fdf35b54d5 which accounts for 100% of the latency increase."
+    }
+  ],
+  "fallbackReason": "the LLM is disabled",
+  "model": null,
+  "rejections": [],
+  "source": "template",
+  "summary": "POST /orders regressed in orders between 1.0.0 and 1.1.0. The most likely cause is commit 2222222."
+}

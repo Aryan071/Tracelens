@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "tracelens: build extension",
+      "type": "shell",
+      "command": "cd extension && npm ci --no-audit --no-fund && npm run build",
+      "problemMatcher": "$tsc"
+    }
+  ]
+}
